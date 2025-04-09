@@ -17,3 +17,25 @@ async def fetch_map_data(token: str, chain: str):
             return data
         else:
             return None
+
+async def fetch_address_details(token: str, chain: str, address: str):
+    """
+    Fetch details of a specific address from the Bubblemaps API data.
+    
+    Args:
+        token (str): Token address (e.g., '0x19de6b897ed14a376dda0fe53a5420d2ac828a28')
+        chain (str): Blockchain chain (e.g., 'eth')
+        address (str): Address to look up (e.g., '0x1ae3739e17d8500f2b2d80086ed092596a116e0b')
+    
+    Returns:
+        dict: Details of the address if found, None otherwise
+    """
+    map_data = await fetch_map_data(token, chain)
+    if not map_data:
+        return None
+
+    for node in map_data.get("nodes", []):
+        if node["address"].lower() == address.lower():  # Case-insensitive comparison
+            return node
+    
+    return None
