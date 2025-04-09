@@ -39,3 +39,22 @@ async def fetch_address_details(token: str, chain: str, address: str):
             return node
     
     return None
+
+async def fetch_distribution(token: str, chain: str):
+    """
+    Fetch and sort the distribution of token holdings in decreasing order by amount.
+    
+    Args:
+        token (str): Token address
+        chain (str): Blockchain chain
+    
+    Returns:
+        list: Sorted list of nodes by amount in descending order, or None if data unavailable
+    """
+    map_data = await fetch_map_data(token, chain)
+    if not map_data:
+        return None
+
+    nodes = map_data.get("nodes", [])
+    sorted_nodes = sorted(nodes, key=lambda x: x.get("amount", 0), reverse=True)
+    return sorted_nodes
