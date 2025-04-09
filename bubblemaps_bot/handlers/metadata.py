@@ -1,22 +1,28 @@
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
-from bubblemaps_bot.utils.bubblemaps_metadata import fetch_metadata
+from bubblemaps_bot.utils.bubblemaps_metadata import fetch_metadata, fetch_metadata_from_all_chains
 
 async def meta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if len(context.args) != 2:
-        await update.message.reply_text("Usage: /meta <chain> <token_address>")
+    if not context.args:
+        await update.message.reply_text("Usage: /meta <token_address> or /meta <chain> <token_address>")
         return
 
-    chain, token = context.args
-    data = await fetch_metadata(token, chain)
-
-    if not data:
-        await update.message.reply_text("❌ Error contacting Bubblemaps API.")
-        return
-
-    if data.get("status") != "OK":
-        await update.message.reply_text(f"❌ Bubblemaps error: {data.get('message', 'Unknown error')}")
-        return
+    if len(context.args) == 1:
+        token = context.args[0]
+        result = await fetch_metadata_from_all_chains(token)
+        if not result:
+            await update.message.reply_text("❌ No metadata found for this token on supported chains.")
+            return
+        chain, data = result
+    else:
+        chain, token = context.args
+        data = await fetch_metadata(token, chain)
+        if not data:
+            await update.message.reply_text("❌ Error contacting Bubblemaps API.")
+            return
+        if data.get("status") != "OK":
+            await update.message.reply_text(f"❌ Bubblemaps error: {data.get('message', 'Unknown error')}")
+            return
 
     score = data["decentralisation_score"]
     cex = data["identified_supply"]["percent_in_cexs"]
