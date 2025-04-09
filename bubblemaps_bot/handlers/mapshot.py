@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler
 from bubblemaps_bot.utils.screenshot import capture_bubblemap
-from bubblemaps_bot.utils.bubblemaps_map import build_iframe_url
+from bubblemaps_bot.utils.screenshot import build_iframe_url
 
 async def mapshot_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) != 2:

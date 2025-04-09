@@ -15,7 +15,12 @@ DEFAULT_USER_AGENT = (
     "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 )
 
+IFRAME_URL_TEMPLATE = "https://app.bubblemaps.io/{chain}/token/{token}"
+
 MAP_AVAILABILITY_API = "https://api-legacy.bubblemaps.io/map-availability"
+
+def build_iframe_url(chain: str, token: str) -> str:
+    return IFRAME_URL_TEMPLATE.format(chain=chain, token=token)
 
 async def check_map_availability(chain: str, token: str) -> bool:
     try:
@@ -42,6 +47,7 @@ async def capture_bubblemap(chain: str, token: str, delay: int = 10) -> bytes:
         else:
             logger.info(f"[CACHE MISS] {redis_key}")
 
+    # ✅ Check availability before screenshot
     is_available = await check_map_availability(chain, token)
     if not is_available:
         raise Exception(f"[UNAVAILABLE] BubbleMap not available for {chain}:{token}, skipping screenshot.")
