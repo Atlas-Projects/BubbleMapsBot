@@ -1,0 +1,31 @@
+# Project Specific Ignores
+config.yaml
+*.db
+*.session
+*.session-journal
+alembic.ini
+**/__pycache__/
+*.log
+
+# IDE Specific Ignores
+.vscode/
+
+# Virtualenv Specific Ignores
+.Python
+[Bb]in
+[Ii]nclude
+[Ll]ib
+[Ll]ib64
+[Ll]ocal
+[Ss]cripts
+pyvenv.cfg
+.venv
+pip-selfcheck.json
+Pipfile
+Pipfile.lock
+.python-version
+
+# Nix Specific Ignores
+/.direnv/
+/result
+/dist/

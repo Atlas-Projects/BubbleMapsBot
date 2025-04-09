@@ -1,0 +1,8 @@
+python-telegram-bot==22.0
+SQLAlchemy==2.0.28
+aiohttp
+aiosqlite
+PyYAML
+pyppeteer
+redis
+setuptools
