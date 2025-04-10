@@ -29,6 +29,7 @@ BOT_API_URL: Final[str] = telegram_config.get(
     "bot_api_url") or "https://api.telegram.org/bot"
 BOT_API_FILE_URL: Final[str] = telegram_config.get(
     "bot_api_file_url") or "https://api.telegram.org/file/bot"
+SUDO_USERS: Final[list[int]] = telegram_config.get("sudo_users", [])
 
 # Database
 SCHEMA = database_config.get("schema", "sqlite+aiosqlite:///bubblemaps.db")
