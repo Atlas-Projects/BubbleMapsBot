@@ -96,7 +96,7 @@ async def send_mapshot(message, context: ContextTypes.DEFAULT_TYPE):
         iframe_url = build_iframe_url(chain, token)
         keyboard = [
             [InlineKeyboardButton("🌐 View Bubblemap", url=iframe_url)],
-            [InlineKeyboardButton("🔙 Back", callback_data="check_back")]
+            [InlineKeyboardButton("❌ Close", callback_data="check_close")]
         ]
         markup = InlineKeyboardMarkup(keyboard)
 
@@ -264,7 +264,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "check_close":
         await query.delete_message()
-        context.user_data.pop("check", None)
+        # context.user_data.pop("check", None)
+        if check_data.get("message_id") is None or query.message.message_id == check_data.get("message_id"):
+            context.user_data.pop("check", None)
         return
 
     elif data == "check_mapshot":
