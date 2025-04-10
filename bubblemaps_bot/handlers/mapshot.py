@@ -4,7 +4,7 @@ from bubblemaps_bot.utils.screenshot import capture_bubblemap, build_iframe_url,
 from bubblemaps_bot.utils.bubblemaps_metadata import fetch_metadata_from_all_chains
 import asyncio
 
-async def mapshot_worker(chat_id: int, context: CallbackContext, chain: str, token: str):
+async def mapshot_worker(please_wait_msg, update: Update, context: CallbackContext, chain: str, token: str):
     try:
         screenshot = await capture_bubblemap(chain, token)
         iframe_url = build_iframe_url(chain, token)
@@ -12,15 +12,16 @@ async def mapshot_worker(chat_id: int, context: CallbackContext, chain: str, tok
         keyboard = [[InlineKeyboardButton("🌐 View Bubblemap", url=iframe_url)]]
         markup = InlineKeyboardMarkup(keyboard)
 
-        await context.bot.send_photo(
-            chat_id=chat_id,
+        await please_wait_msg.delete()
+
+        await update.message.reply_photo(
             photo=screenshot,
             caption=f"🗺 Bubblemap preview for <code>{token}</code> on {chain.upper()}",
             reply_markup=markup,
             parse_mode="HTML"
         )
     except Exception as e:
-        await context.bot.send_message(chat_id=chat_id, text=f"❌ Failed to generate mapshot: {e}")
+        await please_wait_msg.edit_text(f"❌ Failed to generate mapshot: {e}")
 
 async def mapshot_command(update: Update, context: CallbackContext):
     if not context.args or len(context.args) > 2:
@@ -42,8 +43,9 @@ async def mapshot_command(update: Update, context: CallbackContext):
         await update.message.reply_text(f"❌ No Bubblemap available for this token on {chain.upper()}.")
         return
 
-    await update.message.reply_text("Generating mapshot... I’ll send it here when ready!")
-    asyncio.create_task(mapshot_worker(update.effective_chat.id, context, chain, token))
+    please_wait_msg = await update.message.reply_text("⏳ Generating mapshot...")
+
+    asyncio.create_task(mapshot_worker(please_wait_msg, update, context, chain, token))
 
 def get_handlers():
     return [CommandHandler("mapshot", mapshot_command)]
