@@ -13,7 +13,11 @@ fileConfig('logging.ini')
 log = logging.getLogger('[BUBBLEMAPS]')
 
 base_config = load_config("config.yaml")
+
 telegram_config = base_config["telegram"]
+database_config = base_config["database"]
+redis_config = base_config["redis"]
+bubblemaps_config = base_config["bubblemaps"]
 
 BOT_TOKEN: Final[str] = telegram_config["bot_token"]
 DROP_UPDATES: Final[bool] = telegram_config.get("drop_updates", True)
@@ -25,6 +29,20 @@ BOT_API_URL: Final[str] = telegram_config.get(
     "bot_api_url") or "https://api.telegram.org/bot"
 BOT_API_FILE_URL: Final[str] = telegram_config.get(
     "bot_api_file_url") or "https://api.telegram.org/file/bot"
+
+# Database
+SCHEMA = database_config.get("schema", "sqlite+aiosqlite:///bubblemaps.db")
+
+# Redis
+REDIS_ENABLED = redis_config.get("enabled", False)
+REDIS_HOST = redis_config.get("host", "localhost")
+REDIS_PORT = redis_config.get("port", 6379)
+REDIS_DB = redis_config.get("db", 0)
+REDIS_TTL = redis_config.get("ttl", 600)
+SCREENSHOT_CACHE_ENABLED = redis_config.get("screenshot_cache", True)
+
+# Bubblemaps
+SUPPORTED_CHAINS = bubblemaps_config.get("supported_chains", [])
 
 application_defaults = Defaults(
     parse_mode=ParseMode.HTML,

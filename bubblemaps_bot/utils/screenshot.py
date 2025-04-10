@@ -4,7 +4,8 @@ import logging
 import base64
 import aiohttp
 
-from bubblemaps_bot.utils.redis import get_cache, set_cache, SCREENSHOT_CACHE_ENABLED, REDIS_TTL
+from bubblemaps_bot import SCREENSHOT_CACHE_ENABLED, REDIS_TTL
+from bubblemaps_bot.utils.redis import get_cache, set_cache
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
