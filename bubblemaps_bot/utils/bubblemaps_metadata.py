@@ -1,6 +1,7 @@
 import aiohttp
 from bubblemaps_bot.utils.redis import get_cache, set_cache
 from bubblemaps_bot import SUPPORTED_CHAINS, REDIS_TTL
+from bubblemaps_bot.db.tokens import add_successful_token
 
 async def fetch_metadata(token: str, chain: str) -> dict | None:
     cache_key = f"metadata:{chain}:{token}"
@@ -25,5 +26,6 @@ async def fetch_metadata_from_all_chains(token: str) -> tuple[str, dict] | None:
     for chain in SUPPORTED_CHAINS:
         data = await fetch_metadata(token, chain)
         if data and data.get("status") == "OK":
+            await add_successful_token(chain, token)
             return chain, data
     return None
