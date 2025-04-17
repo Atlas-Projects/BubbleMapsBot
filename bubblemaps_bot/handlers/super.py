@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from telegram import (
@@ -44,7 +45,8 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chain, metadata = result
 
     # Store data in user context
-    context.user_data["check"] = {
+    context.user_data[update.effective_chat.id] = {}
+    context.user_data[update.effective_chat.id]["check"] = {
         "token": token,
         "chain": chain,
         "metadata": metadata,
@@ -58,7 +60,7 @@ async def send_main_menu(
     message: Message, context: ContextTypes.DEFAULT_TYPE, edit_message_id=None
 ):
     """Send or edit the main menu with metadata and options."""
-    data = context.user_data.get("check", {})
+    data = context.user_data[message.chat.id].get("check", {})
     if not data:
         await message.reply_text("❌ Session expired.")
         return
@@ -100,22 +102,21 @@ async def send_main_menu(
             parse_mode="HTML",
             reply_to_message_id=__message_id,
         )
-        context.user_data["check"]["message_id"] = __sent_message.message_id
+        context.user_data[message.chat.id]["check"]["message_id"] = (
+            __sent_message.message_id
+        )
     else:
         sent_message = await message.reply_text(
             text, reply_markup=reply_markup, parse_mode="HTML"
         )
-        context.user_data["check"]["message_id"] = sent_message.message_id
+        context.user_data[message.chat.id]["check"]["message_id"] = (
+            sent_message.message_id
+        )
 
 
-async def send_mapshot(message: Message, context: ContextTypes.DEFAULT_TYPE):
-    """Generate and send bubblemap screenshot."""
-    data = context.user_data.get("check", {})
-    chain = data["chain"]
-    token = data["token"]
-
-    await message.edit_text("⏳ Please wait while a bubblemap is generated...")
-
+async def generate_bubblemap_send(
+    chain: str, token: str, message: Message, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     try:
         screenshot = await capture_bubblemap(chain, token)
         iframe_url = build_iframe_url(chain, token)
@@ -139,16 +140,32 @@ async def send_mapshot(message: Message, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=markup,
             reply_to_message_id=__message_id,
         )
-        context.user_data["check"]["message_id"] = __sent_message.message_id
+        context.user_data[message.chat.id]["check"]["message_id"] = (
+            __sent_message.message_id
+        )
     except Exception as e:
         await message.edit_text(f"❌ Mapshot failed: {e}")
+
+
+async def send_mapshot(message: Message, context: ContextTypes.DEFAULT_TYPE):
+    """Generate and send bubblemap screenshot."""
+    data = context.user_data[message.chat.id].get("check", {})
+    chain = data["chain"]
+    token = data["token"]
+
+    await message.edit_text("⏳ Please wait while a bubblemap is generated...")
+    asyncio.create_task(
+        generate_bubblemap_send(
+            chain=chain, token=token, message=message, context=context
+        )
+    )
 
 
 async def send_distribution_page(
     message, context: ContextTypes.DEFAULT_TYPE, edit_message_id=None
 ):
     """Send or edit distribution page with address selection options."""
-    data = context.user_data.get("check", {})
+    data = context.user_data[message.chat.id].get("check", {})
     if not data.get("distribution"):
         sorted_nodes = await fetch_distribution(data["token"], data["chain"])
         if not sorted_nodes:
@@ -224,7 +241,7 @@ async def send_address_details_inline(
     message, context: ContextTypes.DEFAULT_TYPE, address: str, edit_message_id=None
 ):
     """Display address details in the same message with a back button."""
-    data = context.user_data.get("check", {})
+    data = context.user_data[message.chat.id].get("check", {})
     chain = data["chain"]
     token = data["token"]
 
@@ -272,7 +289,7 @@ async def send_address_details_new(
     message, context: ContextTypes.DEFAULT_TYPE, address: str
 ):
     """Send address details as a new message without buttons."""
-    data = context.user_data.get("check", {})
+    data = context.user_data[message.chat.id].get("check", {})
     chain = data["chain"]
     token = data["token"]
 
@@ -310,7 +327,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     data = query.data
-    check_data = context.user_data.get("check", {})
+    check_data = context.user_data[update.effective_chat.id].get("check", {})
     if not check_data:
         await query.edit_message_text("❌ Session expired.")
         return
@@ -319,11 +336,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "check_close":
         await query.delete_message()
-        # context.user_data.pop("check", None)
         if check_data.get(
             "message_id"
         ) is None or query.message.message_id == check_data.get("message_id"):
-            context.user_data.pop("check", None)
+            context.user_data[update.effective_chat.id].pop("check", None)
         return
 
     elif data == "check_mapshot":
