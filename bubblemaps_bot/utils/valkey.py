@@ -1,13 +1,15 @@
 import json
+
+from telegram.ext import Application
 from valkey.asyncio import Valkey
+
 from bubblemaps_bot import (
+    VALKEY_DB,
     VALKEY_ENABLED,
-    VALKEY_TTL,
     VALKEY_HOST,
     VALKEY_PORT,
-    VALKEY_DB,
+    VALKEY_TTL,
 )
-
 
 valkey: Valkey | None = None
 
@@ -35,3 +37,7 @@ async def set_cache(key: str, value: dict, ttl: int = None) -> None:
         await valkey.set(key, json.dumps(value), ex=ttl or VALKEY_TTL)
     except Exception as e:
         print(f"Error setting cache for key {key}: {e}")
+
+
+async def shutdown_valkey(_: Application) -> None:
+    await valkey.shutdown(save=True)

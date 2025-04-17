@@ -4,7 +4,6 @@ import logging
 
 import aiohttp
 from playwright.async_api import Browser, async_playwright
-from telegram.ext import Application
 
 from bubblemaps_bot import SCREENSHOT_CACHE_ENABLED, VALKEY_ENABLED, VALKEY_TTL
 from bubblemaps_bot.utils.valkey import get_cache, set_cache
@@ -42,19 +41,6 @@ async def init_browser():
                 "--disable-gpu",
             ],
         )
-
-
-async def close_browser(_: Application):
-    global browser, playwright
-    if browser:
-        try:
-            await browser.close()
-            await playwright.stop()  # Stop the playwright instance
-            browser = None  # Reset browser variable
-        except Exception as e:
-            print(f"Error while closing the browser: {e}")
-    else:
-        print("Browser is already closed or not initialized.")
 
 
 def build_iframe_url(chain: str, token: str) -> str:
@@ -97,6 +83,10 @@ async def capture_bubblemap(chain: str, token: str, delay: int = 10) -> bytes:
         )
 
     url = f"https://app.bubblemaps.io/{chain}/token/{token}"
+
+    global browser
+    if not browser.is_connected():
+        await init_browser()
 
     try:
         # Limit concurrent executions

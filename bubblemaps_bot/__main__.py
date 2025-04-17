@@ -13,9 +13,10 @@ from bubblemaps_bot import (
 )
 from bubblemaps_bot.db.session import init_db
 from bubblemaps_bot.handlers import get_all_handlers
-from bubblemaps_bot.utils.screenshot import close_browser, init_browser
+from bubblemaps_bot.utils.screenshot import init_browser
+from bubblemaps_bot.utils.valkey import shutdown_valkey
 
-builder.post_shutdown(close_browser)
+builder.post_shutdown(shutdown_valkey)
 application = builder.build()
 
 
