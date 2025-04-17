@@ -1,7 +1,5 @@
-import sys
 import logging
 from logging.config import fileConfig
-from pathlib import Path
 from typing import Final, Optional
 
 from telegram.constants import ParseMode
@@ -61,4 +59,3 @@ builder.base_url(base_url=BOT_API_URL)
 builder.connect_timeout(connect_timeout=10)
 builder.read_timeout(read_timeout=10)
 builder.defaults(defaults=application_defaults)
-application = builder.build()
