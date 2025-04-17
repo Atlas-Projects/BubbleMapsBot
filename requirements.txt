@@ -3,6 +3,6 @@ SQLAlchemy
 aiohttp
 aiosqlite
 PyYAML
-pyppeteer
 valkey[libvalkey]
 setuptools
+playwright
