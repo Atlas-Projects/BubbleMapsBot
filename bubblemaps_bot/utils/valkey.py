@@ -40,4 +40,5 @@ async def set_cache(key: str, value: dict, ttl: int = None) -> None:
 
 
 async def shutdown_valkey(_: Application) -> None:
-    await valkey.aclose(close_connection_pool=True)
+    if valkey:
+        await valkey.aclose(close_connection_pool=True)
