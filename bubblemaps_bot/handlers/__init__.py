@@ -1,6 +1,7 @@
 from telegram.ext import BaseHandler
 
 from bubblemaps_bot.handlers import (
+    coingecko,
     start,
     metadata,
     mapshot,
@@ -21,5 +22,6 @@ def get_all_handlers() -> list[BaseHandler]:
     handlers.extend(distribution.get_handlers())
     handlers.extend(super.get_handlers())
     handlers.extend(valkey.get_handlers())
+    handlers.extend(coingecko.get_handlers())
 
     return handlers

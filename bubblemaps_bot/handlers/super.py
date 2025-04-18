@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from datetime import datetime
 
 from telegram import (
     InlineKeyboardButton,
@@ -14,6 +15,7 @@ from bubblemaps_bot.utils.bubblemaps_api import (
     fetch_distribution,
 )
 from bubblemaps_bot.utils.bubblemaps_metadata import fetch_metadata_from_all_chains
+from bubblemaps_bot.utils.coingecko_api import get_market_data
 from bubblemaps_bot.utils.screenshot import build_iframe_url, capture_bubblemap
 
 logging.basicConfig(level=logging.INFO)
@@ -34,7 +36,6 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     token = context.args[0]
 
-    # Check metadata across all chains
     result = await fetch_metadata_from_all_chains(token)
     if not result:
         await update.message.reply_text(
@@ -44,7 +45,6 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     chain, metadata = result
 
-    # Store data in user context
     context.user_data[update.effective_chat.id] = {}
     context.user_data[update.effective_chat.id]["check"] = {
         "token": token,
@@ -87,6 +87,7 @@ async def send_main_menu(
     keyboard = [
         [InlineKeyboardButton("🗺 Generate Mapshot", callback_data="check_mapshot")],
         [InlineKeyboardButton("📊 Distribution", callback_data="check_distribution")],
+        [InlineKeyboardButton("ℹ️ More Info", callback_data="check_more_info")],
         [InlineKeyboardButton("❌ Close", callback_data="check_close")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -196,7 +197,6 @@ async def send_distribution_page(
         percentage = node.get("percentage", 0)
         amount = node.get("amount", 0)
         text += f"<code>{address}</code>: {percentage:.2f}% ({amount:,.2f})\n"
-        # Two buttons per address
         keyboard.append(
             [
                 InlineKeyboardButton(
@@ -321,6 +321,112 @@ async def send_address_details_new(
     await message.reply_text(text, parse_mode="HTML")
 
 
+async def send_market_info(
+    message: Message, context: ContextTypes.DEFAULT_TYPE, edit_message_id=None
+):
+    """Fetch and display additional market information from CoinGecko."""
+    data = context.user_data[message.chat.id].get("check", {})
+    if not data:
+        await message.reply_text("❌ Session expired.")
+        return
+
+    chain = data["chain"]
+    token = data["token"]
+
+    try:
+        await message.edit_text("⏳ Fetching market information...")
+    except Exception as e:
+        logger.error(f"Failed to edit message to show loading: {e}")
+        text = f"❌ Error initiating market information fetch for token {token} on {chain.upper()}."
+        keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="check_back")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await message.reply_text(
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode="HTML"
+        )
+        return
+
+    try:
+        market_data = await get_market_data(chain, token)
+        if not market_data:
+            logger.warning(f"No market data found for {chain}/{token}")
+            text = f"❌ No information found on CoinGecko for token {token} on {chain.upper()}."
+            keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="check_back")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await context.bot.edit_message_text(
+                chat_id=message.chat_id,
+                message_id=edit_message_id,
+                text=text,
+                reply_markup=reply_markup,
+                parse_mode="HTML",
+            )
+            return
+
+        name = market_data.get("name", "Unknown")
+        symbol = market_data.get("symbol", "Unknown").upper()
+        current_price = market_data.get("market_data", {}).get("current_price", {}).get("usd", "N/A")
+        market_cap = market_data.get("market_data", {}).get("market_cap", {}).get("usd", "N/A")
+        market_cap_rank = market_data.get("market_data", {}).get("market_cap_rank", "N/A")
+        total_volume = market_data.get("market_data", {}).get("total_volume", {}).get("usd", "N/A")
+        price_change_24h = market_data.get("market_data", {}).get("price_change_percentage_24h", "N/A")
+        total_supply = market_data.get("market_data", {}).get("total_supply", "N/A")
+        circulating_supply = market_data.get("market_data", {}).get("circulating_supply", "N/A")
+        ath = market_data.get("market_data", {}).get("ath", {}).get("usd", "N/A")
+        ath_date = market_data.get("market_data", {}).get("ath_date", {}).get("usd", "N/A")
+        if ath_date != "N/A":
+            ath_date = datetime.strptime(ath_date, "%Y-%m-%dT%H:%M:%S.%fZ").strftime("%Y-%m-%d")
+        last_updated = market_data.get("last_updated", "N/A")
+        if last_updated != "N/A":
+            last_updated = datetime.strptime(last_updated, "%Y-%m-%dT%H:%M:%S.%fZ").strftime("%Y-%m-%d %H:%M:%S")
+
+        text = (
+            f"<b>📈 Market Information</b>\n\n"
+            f"🏷️ <b>Name:</b> {name}\n"
+            f"🔣 <b>Symbol:</b> {symbol}\n"
+            f"💰 <b>Current Price (USD):</b> ${current_price:,.4f}\n"
+            f"📊 <b>Market Cap (USD):</b> ${market_cap:,.2f}\n"
+            f"🏅 <b>Market Cap Rank:</b> {market_cap_rank}\n"
+            f"🔄 <b>24h Volume (USD):</b> ${total_volume:,.2f}\n"
+            f"📉 <b>24h Price Change:</b> {price_change_24h:.2f}%\n"
+            f"🔢 <b>Total Supply:</b> {total_supply:,.2f}\n"
+            f"💸 <b>Circulating Supply:</b> {circulating_supply:,.2f}\n"
+            f"🌟 <b>All-Time High (USD):</b> ${ath:,.4f}\n"
+            f"📅 <b>ATH Date:</b> {ath_date}\n"
+            f"🕒 <b>Last Updated:</b> {last_updated}"
+        )
+
+        keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="check_back")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        if edit_message_id:
+            await context.bot.edit_message_text(
+                chat_id=message.chat_id,
+                message_id=edit_message_id,
+                text=text,
+                reply_markup=reply_markup,
+                parse_mode="HTML",
+            )
+        else:
+            sent_message = await message.reply_text(
+                text, reply_markup=reply_markup, parse_mode="HTML"
+            )
+            data["message_id"] = sent_message.message_id
+
+    except Exception as e:
+        logger.error(f"Error in send_market_info for {chain}/{token}: {e}")
+        text = f"❌ Error fetching market information for token {token} on {chain.upper()}."
+        keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="check_back")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await context.bot.edit_message_text(
+            chat_id=message.chat_id,
+            message_id=edit_message_id,
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode="HTML",
+        )
+
+
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle all button callbacks."""
     query = update.callback_query
@@ -353,6 +459,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    elif data == "check_more_info":
+        check_data["state"] = "market_info"
+        await send_market_info(
+            message, context, edit_message_id=check_data["message_id"]
+        )
+        return
+
     elif data.startswith("check_dist_prev_") or data.startswith("check_dist_next_"):
         page = int(data.split("_")[-1])
         check_data["distribution"]["page"] = (
@@ -380,6 +493,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if check_data["state"] == "address_inline":
             check_data["state"] = "distribution"
             await send_distribution_page(
+                message, context, edit_message_id=check_data["message_id"]
+            )
+        elif check_data["state"] == "market_info":
+            check_data["state"] = "main_menu"
+            await send_main_menu(
                 message, context, edit_message_id=check_data["message_id"]
             )
         else:
