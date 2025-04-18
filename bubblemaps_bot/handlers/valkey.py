@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes
 from bubblemaps_bot import SUDO_USERS
-from bubblemaps_bot.utils.redis import redis
+from bubblemaps_bot.utils.valkey import valkey
 
 
 async def clear_cache_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -10,17 +10,21 @@ async def clear_cache_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     if user_id not in SUDO_USERS:
         return
 
-    if not redis:
-        await update.message.reply_text("⚠️ Redis is not enabled or not connected.")
+    if not valkey:
+        await update.message.reply_text("⚠️ Valkey is not enabled or not connected.")
         return
-    
-    keyboard = InlineKeyboardMarkup([
+
+    keyboard = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("✅ Yes", callback_data="confirm_clear_cache"),
-            InlineKeyboardButton("❌ No", callback_data="cancel_clear_cache")
+            [
+                InlineKeyboardButton("✅ Yes", callback_data="confirm_clear_cache"),
+                InlineKeyboardButton("❌ No", callback_data="cancel_clear_cache"),
+            ]
         ]
-    ])
-    await update.message.reply_text("Are you sure you want to clear the Redis cache?", reply_markup=keyboard)
+    )
+    await update.message.reply_text(
+        "Are you sure you want to clear the Valkey cache?", reply_markup=keyboard
+    )
 
 
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -30,16 +34,18 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
     if query.data == "confirm_clear_cache":
         if user_id in SUDO_USERS:
-            if redis:
+            if valkey:
                 try:
-                    await redis.flushdb()
-                    await query.edit_message_text("✅ Redis cache has been cleared.")
+                    await valkey.flushdb()
+                    await query.edit_message_text("✅ Valkey cache has been cleared.")
                 except Exception as e:
                     await query.edit_message_text(f"❌ Failed to clear cache: {e}")
             else:
-                await query.edit_message_text("⚠️ Redis is not enabled.")
+                await query.edit_message_text("⚠️ Valkey is not enabled.")
         else:
-            await query.edit_message_text("🚫 You are not authorized to perform this action.")
+            await query.edit_message_text(
+                "🚫 You are not authorized to perform this action."
+            )
 
     elif query.data == "cancel_clear_cache":
         await query.edit_message_text("❎ Cancelled cache clear.")
@@ -51,5 +57,5 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 def get_handlers():
     return [
         CommandHandler("clear", clear_cache_command),
-        CallbackQueryHandler(handle_callback_query)
+        CallbackQueryHandler(handle_callback_query),
     ]

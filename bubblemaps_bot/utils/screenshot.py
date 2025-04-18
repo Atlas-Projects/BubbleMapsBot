@@ -1,10 +1,12 @@
 import asyncio
-import pyppeteer
-import logging
 import base64
+import logging
+
 import aiohttp
-from bubblemaps_bot import SCREENSHOT_CACHE_ENABLED, REDIS_TTL, REDIS_ENABLED
-from bubblemaps_bot.utils.redis import get_cache, set_cache
+from playwright.async_api import Browser, async_playwright
+
+from bubblemaps_bot import SCREENSHOT_CACHE_ENABLED, VALKEY_ENABLED, VALKEY_TTL
+from bubblemaps_bot.utils.valkey import get_cache, set_cache
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -19,13 +21,15 @@ IFRAME_URL_TEMPLATE = "https://app.bubblemaps.io/{chain}/token/{token}"
 MAP_AVAILABILITY_API = "https://api-legacy.bubblemaps.io/map-availability"
 
 # Persistent browser and concurrency limit
-browser = None
+browser: Browser = None
 semaphore = asyncio.Semaphore(5)  # limit concurrent screenshot tasks
 
+
 async def init_browser():
-    global browser
+    global browser, playwright
     if not browser:
-        browser = await pyppeteer.launch(
+        playwright = await async_playwright().start()
+        browser = await playwright.chromium.launch(
             headless=True,
             args=[
                 "--no-sandbox",
@@ -38,19 +42,17 @@ async def init_browser():
             ],
         )
 
-async def close_browser():
-    global browser
-    if browser:
-        await browser.close()
-        browser = None
 
 def build_iframe_url(chain: str, token: str) -> str:
     return IFRAME_URL_TEMPLATE.format(chain=chain, token=token)
 
+
 async def check_map_availability(chain: str, token: str) -> bool:
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(MAP_AVAILABILITY_API, params={"chain": chain, "token": token}) as resp:
+            async with session.get(
+                MAP_AVAILABILITY_API, params={"chain": chain, "token": token}
+            ) as resp:
                 data = await resp.json()
                 if data.get("status") == "OK":
                     return data.get("availability", False)
@@ -61,50 +63,63 @@ async def check_map_availability(chain: str, token: str) -> bool:
         logger.error(f"[AVAILABILITY CHECK ERROR] {e}")
         return False
 
-async def capture_bubblemap(chain: str, token: str, delay: int = 10) -> bytes:
-    redis_key = f"bubblemap:screenshot:{chain}:{token}"
 
-    if REDIS_ENABLED and SCREENSHOT_CACHE_ENABLED:
-        cached = await get_cache(redis_key)
+async def capture_bubblemap(chain: str, token: str, delay: int = 10) -> bytes:
+    valkey_key = f"bubblemap:screenshot:{chain}:{token}"
+
+    if VALKEY_ENABLED and SCREENSHOT_CACHE_ENABLED:
+        cached = await get_cache(valkey_key)
         if cached and "image" in cached:
-            logger.info(f"[CACHE HIT] {redis_key}")
+            logger.info(f"[CACHE HIT] {valkey_key}")
             return base64.b64decode(cached["image"])
         else:
-            logger.info(f"[CACHE MISS] {redis_key}")
+            logger.info(f"[CACHE MISS] {valkey_key}")
 
     # ✅ Check availability before screenshot
     is_available = await check_map_availability(chain, token)
     if not is_available:
-        raise Exception(f"[UNAVAILABLE] BubbleMap not available for {chain}:{token}, skipping screenshot.")
+        raise Exception(
+            f"[UNAVAILABLE] BubbleMap not available for {chain}:{token}, skipping screenshot."
+        )
 
     url = f"https://app.bubblemaps.io/{chain}/token/{token}"
+
+    global browser
+    if not browser.is_connected():
+        await init_browser()
 
     try:
         # Limit concurrent executions
         async with semaphore:
-            page = await browser.newPage()
+            context = await browser.new_context(
+                viewport=DEFAULT_VIEWPORT,
+                user_agent=DEFAULT_USER_AGENT,
+                java_script_enabled=True,
+            )
+            page = await context.new_page()
             try:
-                await page.setViewport(DEFAULT_VIEWPORT)
-                await page.setUserAgent(DEFAULT_USER_AGENT)
-                await page.setJavaScriptEnabled(True)
-
-                await page.goto(url, {"waitUntil": "domcontentloaded", "timeout": 30000})
+                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
                 await asyncio.sleep(5)
 
                 try:
-                    await page.evaluate("""
-                        const elements = Array.from(document.querySelectorAll("*"));
-                        for (const el of elements) {
-                            if (el.innerText && el.innerText.trim() === 'CLOSE') {
-                                el.click();
+                    await page.evaluate(
+                        """
+                        () => {
+                            const elements = Array.from(document.querySelectorAll("*"));
+                            for (const el of elements) {
+                                if (el.innerText && el.innerText.trim() === 'CLOSE') {
+                                    el.click();
+                                }
                             }
                         }
-                    """)
+                        """
+                    )
                     await asyncio.sleep(2)
                 except Exception as e:
                     logger.warning(f"Failed to close popup: {e}")
 
-                await page.evaluate("""
+                await page.evaluate(
+                    """
                     () => {
                         const banner = document.querySelector('div.fundraising-banner.--desktop');
                         if (banner) banner.remove();
@@ -112,39 +127,48 @@ async def capture_bubblemap(chain: str, token: str, delay: int = 10) -> bytes:
                         const header = document.querySelector('header.mdc-top-app-bar.mdc-top-app-bar--fixed');
                         if (header) header.style.display = 'flex';
                     }
-                """)
+                    """
+                )
 
-                svg_element = await page.querySelector('#svg')
+                svg_element = await page.query_selector("#svg")
                 if not svg_element:
                     raise Exception("SVG element with id='svg' not found")
 
-                await page.evaluate("""
+                await svg_element.evaluate(
+                    """
                     (svg) => {
                         svg.style.visibility = 'visible';
                         svg.style.opacity = '1';
                     }
-                """, svg_element)
+                    """
+                )
 
                 await asyncio.sleep(delay)
 
-                bounding_box = await svg_element.boundingBox()
+                bounding_box = await svg_element.bounding_box()
                 if not bounding_box:
                     raise Exception("SVG bounding box not available")
 
                 screenshot = await svg_element.screenshot(type="png")
 
-                if REDIS_ENABLED and SCREENSHOT_CACHE_ENABLED:
-                    await set_cache(redis_key, {"image": base64.b64encode(screenshot).decode("utf-8")}, ttl=REDIS_TTL)
-                    logger.info(f"Cached screenshot under {redis_key}")
+                if VALKEY_ENABLED and SCREENSHOT_CACHE_ENABLED:
+                    await set_cache(
+                        valkey_key,
+                        {"image": base64.b64encode(screenshot).decode("utf-8")},
+                        ttl=VALKEY_TTL,
+                    )
+                    logger.info(f"Cached screenshot under {valkey_key}")
 
                 return screenshot
-        
+
             finally:
                 await page.close()
+                await context.close()
 
     except Exception as e:
         logger.error(f"SVG capture failed: {e}")
         raise
+
 
 async def capture_multiple_bubblemaps(tasks):
     # Prepare all tasks for concurrent execution

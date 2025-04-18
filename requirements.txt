@@ -1,8 +1,8 @@
 python-telegram-bot==22.0
-SQLAlchemy==2.0.28
+SQLAlchemy
 aiohttp
 aiosqlite
 PyYAML
-pyppeteer
-redis
+valkey[libvalkey]
 setuptools
+playwright

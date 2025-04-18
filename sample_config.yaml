@@ -1,0 +1,34 @@
+telegram:
+  bot_token: 
+  drop_updates: 
+  webhook: 
+  webhook_url: 
+  webhook_port: 
+  webhook_cert_path: 
+  sudo_users:
+    - 123
+    - 456
+
+database:
+  schema: 
+
+valkey:
+  enabled: 
+  host: 
+  port: 
+  db: 
+  ttl: 
+  screenshot_cache: 
+
+bubblemaps:
+  supported_chains:
+    - eth
+    - bsc
+    - ftm
+    - avax
+    - cro
+    - arbi
+    - poly
+    - base
+    - sol
+    - sonic
