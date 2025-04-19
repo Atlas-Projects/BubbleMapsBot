@@ -199,11 +199,10 @@ async def send_distribution_page(
     )
 
     keyboard = []
-    for node in current_nodes:
+    for idx, node in enumerate(current_nodes, start=1):
         address = node["address"]
         percentage = node.get("percentage", 0)
-        amount = node.get("amount", 0)
-        text += f"<code>{address}</code>: {percentage:.2f}% ({amount:,.2f})\n"
+        text += f"{idx}. <code>{address}</code>: {percentage:.2f}%\n"
         keyboard.append(
             [
                 InlineKeyboardButton(
