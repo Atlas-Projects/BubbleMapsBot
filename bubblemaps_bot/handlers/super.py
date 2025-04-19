@@ -129,13 +129,29 @@ async def generate_bubblemap_send(chain: str, token: str, query: CallbackQuery) 
     try:
         screenshot = await capture_bubblemap(chain, token)
         iframe_url = build_iframe_url(chain, token)
-        keyboard = [
-            [
-                InlineKeyboardButton("🌐 View Bubblemap", url=iframe_url),
-                InlineKeyboardButton("❌ Close", callback_data="check_close"),
-            ],
-            [InlineKeyboardButton("⬅️ Go Back", callback_data="check_back_bmap")],
-        ]
+        
+        is_group = query.message.chat.type in ["group", "supergroup"]
+
+        if is_group:
+            keyboard = [
+                [InlineKeyboardButton("🌐 View in Browser", url=iframe_url)],
+                [
+                    InlineKeyboardButton("❌ Close", callback_data="check_close"),
+                    InlineKeyboardButton("⬅️ Go Back", callback_data="check_back_bmap"),
+                ],
+            ]
+        else:
+            keyboard = [
+                [
+                    InlineKeyboardButton("🌐 View in Browser", url=iframe_url),
+                    InlineKeyboardButton("🫧 View in Telegram", web_app={"url": iframe_url}),
+                ],
+                [
+                    InlineKeyboardButton("❌ Close", callback_data="check_close"),
+                    InlineKeyboardButton("⬅️ Go Back", callback_data="check_back_bmap"),
+                ],
+            ]
+
         markup = InlineKeyboardMarkup(keyboard)
 
         await query.edit_message_media(

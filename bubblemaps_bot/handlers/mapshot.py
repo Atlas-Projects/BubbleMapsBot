@@ -1,3 +1,4 @@
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackContext
 from bubblemaps_bot.utils.screenshot import capture_bubblemap, build_iframe_url, check_map_availability
@@ -9,7 +10,20 @@ async def mapshot_worker(please_wait_msg, update: Update, context: CallbackConte
         screenshot = await capture_bubblemap(chain, token)
         iframe_url = build_iframe_url(chain, token)
 
-        keyboard = [[InlineKeyboardButton("🌐 View Bubblemap", url=iframe_url)]]
+        is_group = update.message.chat.type in ["group", "supergroup"]
+        
+        if is_group:
+            keyboard = [
+                [InlineKeyboardButton("🌐 View in Browser", url=iframe_url)]
+            ]
+        else:
+            keyboard = [
+                [
+                    InlineKeyboardButton("🌐 View in Browser", url=iframe_url),
+                    InlineKeyboardButton("🫧 View in Telegram", web_app={"url": iframe_url}),
+                ]
+            ]
+        
         markup = InlineKeyboardMarkup(keyboard)
 
         await please_wait_msg.delete()
