@@ -3,11 +3,14 @@ import logging
 from datetime import datetime
 
 from telegram import (
+    CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    InputMediaPhoto,
     Message,
     Update,
 )
+from telegram.constants import ParseMode
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from bubblemaps_bot.utils.bubblemaps_api import (
@@ -24,7 +27,7 @@ logger = logging.getLogger(__name__)
 ITEMS_PER_PAGE = 5
 
 
-async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Main command to check token across all chains and provide comprehensive analysis.
     Usage: /check <token_address>
@@ -57,12 +60,18 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def send_main_menu(
-    message: Message, context: ContextTypes.DEFAULT_TYPE, edit_message_id=None
+    message_query: Message | CallbackQuery | None,
+    context: ContextTypes.DEFAULT_TYPE,
+    bmap_back: bool = False,
 ):
     """Send or edit the main menu with metadata and options."""
-    data = context.user_data[message.chat.id].get("check", {})
+    if isinstance(message_query, CallbackQuery):
+        data = context.user_data[message_query.message.chat.id].get("check", {})
+    elif isinstance(message_query, Message):
+        data = context.user_data[message_query.chat.id].get("check", {})
+
     if not data:
-        await message.reply_text("❌ Session expired.")
+        await message_query.reply_text("❌ Session expired.")
         return
 
     chain = data["chain"]
@@ -92,32 +101,31 @@ async def send_main_menu(
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    if edit_message_id:
-        __chat_id = message.chat.id
-        __message_id = message.reply_to_message.id
-        await message.delete()
-        __sent_message = await context.bot.send_message(
-            chat_id=__chat_id,
-            text=text,
-            reply_markup=reply_markup,
-            parse_mode="HTML",
-            reply_to_message_id=__message_id,
+    if isinstance(message_query, Message):
+        await message_query.reply_text(
+            text=text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
         )
-        context.user_data[message.chat.id]["check"]["message_id"] = (
-            __sent_message.message_id
-        )
-    else:
-        sent_message = await message.reply_text(
-            text, reply_markup=reply_markup, parse_mode="HTML"
-        )
-        context.user_data[message.chat.id]["check"]["message_id"] = (
-            sent_message.message_id
-        )
+    elif isinstance(message_query, CallbackQuery):
+        if not bmap_back:
+            await message_query.edit_message_text(
+                text=text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
+            )
+        else:
+            if isinstance(message_query.message, Message):
+                await message_query.delete_message()
+                message = message_query.message
+                __chat_id = message.chat.id
+                __message_id = message.reply_to_message.id
+                await context.bot.send_message(
+                    chat_id=__chat_id,
+                    text=text,
+                    reply_markup=reply_markup,
+                    parse_mode=ParseMode.HTML,
+                    reply_to_message_id=__message_id,
+                )
 
 
-async def generate_bubblemap_send(
-    chain: str, token: str, message: Message, context: ContextTypes.DEFAULT_TYPE
-) -> None:
+async def generate_bubblemap_send(chain: str, token: str, query: CallbackQuery) -> None:
     try:
         screenshot = await capture_bubblemap(chain, token)
         iframe_url = build_iframe_url(chain, token)
@@ -126,51 +134,50 @@ async def generate_bubblemap_send(
                 InlineKeyboardButton("🌐 View Bubblemap", url=iframe_url),
                 InlineKeyboardButton("❌ Close", callback_data="check_close"),
             ],
-            [InlineKeyboardButton("⬅️ Go Back", callback_data="check_back")],
+            [InlineKeyboardButton("⬅️ Go Back", callback_data="check_back_bmap")],
         ]
         markup = InlineKeyboardMarkup(keyboard)
 
-        __chat_id = message.chat.id
-        __message_id = message.reply_to_message.id
-        await message.delete()
-        __sent_message = await context.bot.send_photo(
-            chat_id=__chat_id,
-            photo=screenshot,
-            caption=f"🗺 Bubblemap for <code>{token}</code> on {chain.upper()}",
-            parse_mode="HTML",
+        await query.edit_message_media(
+            media=InputMediaPhoto(
+                media=screenshot,
+                caption=f"🗺 Bubblemap for <code>{token}</code> on {chain.upper()}",
+                parse_mode=ParseMode.HTML,
+                filename=f"output_bmap_{chain}_{token}.png",
+            ),
             reply_markup=markup,
-            reply_to_message_id=__message_id,
-        )
-        context.user_data[message.chat.id]["check"]["message_id"] = (
-            __sent_message.message_id
         )
     except Exception as e:
-        await message.edit_text(f"❌ Mapshot failed: {e}")
+        await query.edit_message_text(f"❌ Mapshot failed: {e}")
 
 
-async def send_mapshot(message: Message, context: ContextTypes.DEFAULT_TYPE):
+async def send_mapshot(query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE):
     """Generate and send bubblemap screenshot."""
-    data = context.user_data[message.chat.id].get("check", {})
+    data = context.user_data[query.message.chat.id].get("check", {})
     chain = data["chain"]
     token = data["token"]
 
-    await message.edit_text("⏳ Please wait while a bubblemap is generated...")
-    asyncio.create_task(
-        generate_bubblemap_send(
-            chain=chain, token=token, message=message, context=context
-        )
-    )
+    await query.edit_message_text("⏳ Please wait while a bubblemap is generated...")
+    asyncio.create_task(generate_bubblemap_send(chain=chain, token=token, query=query))
 
 
 async def send_distribution_page(
-    message, context: ContextTypes.DEFAULT_TYPE, edit_message_id=None
-):
+    message_query: Message | CallbackQuery | None,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
     """Send or edit distribution page with address selection options."""
-    data = context.user_data[message.chat.id].get("check", {})
+    if isinstance(message_query, Message):
+        data = context.user_data[message_query.chat.id].get("check", {})
+    elif isinstance(message_query, CallbackQuery):
+        data = context.user_data[message_query.message.chat.id].get("check", {})
+
     if not data.get("distribution"):
         sorted_nodes = await fetch_distribution(data["token"], data["chain"])
         if not sorted_nodes:
-            await message.reply_text("❌ No distribution data found.")
+            if isinstance(message_query, Message):
+                await message_query.edit_text("❌ No distribution data found.")
+            elif isinstance(message_query, CallbackQuery):
+                await message_query.edit_message_text("❌ No distribution data found.")
             return
         data["distribution"] = {"nodes": sorted_nodes, "page": 0}
 
@@ -217,37 +224,33 @@ async def send_distribution_page(
         nav_buttons.append(
             InlineKeyboardButton("Next ➡️", callback_data=f"check_dist_next_{page}")
         )
-    nav_buttons.append(InlineKeyboardButton("🔙 Back", callback_data="check_back"))
+
     keyboard.append(nav_buttons)
+    keyboard.append([InlineKeyboardButton("🔙 Back", callback_data="check_back")])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    if edit_message_id:
-        await context.bot.edit_message_text(
-            chat_id=message.chat_id,
-            message_id=edit_message_id,
-            text=text,
-            reply_markup=reply_markup,
-            parse_mode="HTML",
+    if isinstance(message_query, CallbackQuery):
+        await message_query.edit_message_text(
+            text=text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
         )
-    else:
-        sent_message = await message.reply_text(
-            text, reply_markup=reply_markup, parse_mode="HTML"
+    elif isinstance(message_query, Message):
+        await message_query.edit_text(
+            text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
         )
-        data["distribution"]["message_id"] = sent_message.message_id
 
 
 async def send_address_details_inline(
-    message, context: ContextTypes.DEFAULT_TYPE, address: str, edit_message_id=None
-):
+    query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE, address: str
+) -> None:
     """Display address details in the same message with a back button."""
-    data = context.user_data[message.chat.id].get("check", {})
+    data = context.user_data[query.message.chat.id].get("check", {})
     chain = data["chain"]
     token = data["token"]
 
     addr_data = await fetch_address_details(token, chain, address)
     if not addr_data:
-        await message.reply_text(f"❌ No details found for address {address}.")
+        await query.edit_message_text(f"❌ No details found for address {address}.")
         return
 
     name = addr_data.get("name", "Unknown")
@@ -273,29 +276,22 @@ async def send_address_details_inline(
     keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="check_dist_back")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    if edit_message_id:
-        await context.bot.edit_message_text(
-            chat_id=message.chat_id,
-            message_id=edit_message_id,
-            text=text,
-            reply_markup=reply_markup,
-            parse_mode="HTML",
-        )
-    else:
-        await message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML")
+    await query.edit_message_text(
+        text=text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
+    )
 
 
 async def send_address_details_new(
-    message, context: ContextTypes.DEFAULT_TYPE, address: str
-):
+    query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE, address: str
+) -> None:
     """Send address details as a new message without buttons."""
-    data = context.user_data[message.chat.id].get("check", {})
+    data = context.user_data[query.message.chat.id].get("check", {})
     chain = data["chain"]
     token = data["token"]
 
     addr_data = await fetch_address_details(token, chain, address)
     if not addr_data:
-        await message.reply_text(f"❌ No details found for address {address}.")
+        await query.edit_message_text(f"❌ No details found for address {address}.")
         return
 
     name = addr_data.get("name", "Unknown")
@@ -318,32 +314,30 @@ async def send_address_details_new(
         f"📤 <b>Transfer Count:</b> {transfer_count}"
     )
 
-    await message.reply_text(text, parse_mode="HTML")
+    await query.edit_message_text(text, parse_mode=ParseMode.HTML)
 
 
 async def send_market_info(
-    message: Message, context: ContextTypes.DEFAULT_TYPE, edit_message_id=None
-):
+    query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Fetch and display additional market information from CoinGecko."""
-    data = context.user_data[message.chat.id].get("check", {})
+    data = context.user_data[query.message.chat.id].get("check", {})
     if not data:
-        await message.reply_text("❌ Session expired.")
+        await query.edit_message_text("❌ Session expired.")
         return
 
     chain = data["chain"]
     token = data["token"]
 
     try:
-        await message.edit_text("⏳ Fetching market information...")
+        await query.edit_message_text("⏳ Fetching market information...")
     except Exception as e:
         logger.error(f"Failed to edit message to show loading: {e}")
         text = f"❌ Error initiating market information fetch for token {token} on {chain.upper()}."
         keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="check_back")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await message.reply_text(
-            text=text,
-            reply_markup=reply_markup,
-            parse_mode="HTML"
+        await query.edit_message_text(
+            text=text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
         )
         return
 
@@ -354,31 +348,47 @@ async def send_market_info(
             text = f"❌ No information found on CoinGecko for token {token} on {chain.upper()}."
             keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="check_back")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await context.bot.edit_message_text(
-                chat_id=message.chat_id,
-                message_id=edit_message_id,
-                text=text,
-                reply_markup=reply_markup,
-                parse_mode="HTML",
+            await query.edit_message_text(
+                text=text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
             )
             return
 
         name = market_data.get("name", "Unknown")
         symbol = market_data.get("symbol", "Unknown").upper()
-        current_price = market_data.get("market_data", {}).get("current_price", {}).get("usd", "N/A")
-        market_cap = market_data.get("market_data", {}).get("market_cap", {}).get("usd", "N/A")
-        market_cap_rank = market_data.get("market_data", {}).get("market_cap_rank", "N/A")
-        total_volume = market_data.get("market_data", {}).get("total_volume", {}).get("usd", "N/A")
-        price_change_24h = market_data.get("market_data", {}).get("price_change_percentage_24h", "N/A")
+        current_price = (
+            market_data.get("market_data", {})
+            .get("current_price", {})
+            .get("usd", "N/A")
+        )
+        market_cap = (
+            market_data.get("market_data", {}).get("market_cap", {}).get("usd", "N/A")
+        )
+        market_cap_rank = market_data.get("market_data", {}).get(
+            "market_cap_rank", "N/A"
+        )
+        total_volume = (
+            market_data.get("market_data", {}).get("total_volume", {}).get("usd", "N/A")
+        )
+        price_change_24h = market_data.get("market_data", {}).get(
+            "price_change_percentage_24h", "N/A"
+        )
         total_supply = market_data.get("market_data", {}).get("total_supply", "N/A")
-        circulating_supply = market_data.get("market_data", {}).get("circulating_supply", "N/A")
+        circulating_supply = market_data.get("market_data", {}).get(
+            "circulating_supply", "N/A"
+        )
         ath = market_data.get("market_data", {}).get("ath", {}).get("usd", "N/A")
-        ath_date = market_data.get("market_data", {}).get("ath_date", {}).get("usd", "N/A")
+        ath_date = (
+            market_data.get("market_data", {}).get("ath_date", {}).get("usd", "N/A")
+        )
         if ath_date != "N/A":
-            ath_date = datetime.strptime(ath_date, "%Y-%m-%dT%H:%M:%S.%fZ").strftime("%Y-%m-%d")
+            ath_date = datetime.strptime(ath_date, "%Y-%m-%dT%H:%M:%S.%fZ").strftime(
+                "%Y-%m-%d"
+            )
         last_updated = market_data.get("last_updated", "N/A")
         if last_updated != "N/A":
-            last_updated = datetime.strptime(last_updated, "%Y-%m-%dT%H:%M:%S.%fZ").strftime("%Y-%m-%d %H:%M:%S")
+            last_updated = datetime.strptime(
+                last_updated, "%Y-%m-%dT%H:%M:%S.%fZ"
+            ).strftime("%Y-%m-%d %H:%M:%S")
 
         text = (
             f"<b>📈 Market Information</b>\n\n"
@@ -399,31 +409,19 @@ async def send_market_info(
         keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="check_back")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        if edit_message_id:
-            await context.bot.edit_message_text(
-                chat_id=message.chat_id,
-                message_id=edit_message_id,
-                text=text,
-                reply_markup=reply_markup,
-                parse_mode="HTML",
-            )
-        else:
-            sent_message = await message.reply_text(
-                text, reply_markup=reply_markup, parse_mode="HTML"
-            )
-            data["message_id"] = sent_message.message_id
+        await query.edit_message_text(
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML,
+        )
 
     except Exception as e:
         logger.error(f"Error in send_market_info for {chain}/{token}: {e}")
         text = f"❌ Error fetching market information for token {token} on {chain.upper()}."
         keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="check_back")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await context.bot.edit_message_text(
-            chat_id=message.chat_id,
-            message_id=edit_message_id,
-            text=text,
-            reply_markup=reply_markup,
-            parse_mode="HTML",
+        await query.edit_message_text(
+            text=text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
         )
 
 
@@ -438,8 +436,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("❌ Session expired.")
         return
 
-    message = query.message
-
     if data == "check_close":
         await query.delete_message()
         if check_data.get(
@@ -449,21 +445,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     elif data == "check_mapshot":
-        await send_mapshot(message, context)
+        await send_mapshot(query, context)
         return
 
     elif data == "check_distribution":
         check_data["state"] = "distribution"
-        await send_distribution_page(
-            message, context, edit_message_id=check_data["message_id"]
-        )
+        await send_distribution_page(query, context)
         return
 
     elif data == "check_more_info":
         check_data["state"] = "market_info"
-        await send_market_info(
-            message, context, edit_message_id=check_data["message_id"]
-        )
+        await send_market_info(query, context)
         return
 
     elif data.startswith("check_dist_prev_") or data.startswith("check_dist_next_"):
@@ -471,42 +463,35 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         check_data["distribution"]["page"] = (
             page - 1 if data.startswith("check_dist_prev_") else page + 1
         )
-        await send_distribution_page(
-            message, context, edit_message_id=check_data["message_id"]
-        )
+        await send_distribution_page(query, context)
         return
 
     elif data.startswith("check_addr_inline_"):
         address = data.replace("check_addr_inline_", "")
         check_data["state"] = "address_inline"
-        await send_address_details_inline(
-            message, context, address, edit_message_id=check_data["message_id"]
-        )
+        await send_address_details_inline(query, context, address)
         return
 
     elif data.startswith("check_addr_new_"):
         address = data.replace("check_addr_new_", "")
-        await send_address_details_new(message, context, address)
+        await send_address_details_new(query, context, address)
         return
 
-    elif data in ["check_back", "check_dist_back"]:
+    elif data in ["check_back", "check_dist_back", "check_back_bmap"]:
         if check_data["state"] == "address_inline":
             check_data["state"] = "distribution"
-            await send_distribution_page(
-                message, context, edit_message_id=check_data["message_id"]
-            )
+            await send_distribution_page(query, context)
         elif check_data["state"] == "market_info":
             check_data["state"] = "main_menu"
-            await send_main_menu(
-                message, context, edit_message_id=check_data["message_id"]
-            )
+            await send_main_menu(query, context)
         else:
             check_data["state"] = "main_menu"
             if "distribution" in check_data:
                 check_data.pop("distribution")
-            await send_main_menu(
-                message, context, edit_message_id=check_data["message_id"]
-            )
+            if data == "check_back_bmap":
+                await send_main_menu(query, context, bmap_back=True)
+            else:
+                await send_main_menu(query, context)
         return
 
 
