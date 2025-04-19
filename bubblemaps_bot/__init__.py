@@ -44,6 +44,11 @@ SCREENSHOT_CACHE_ENABLED = valkey_config.get("screenshot_cache", True)
 
 # Bubblemaps
 SUPPORTED_CHAINS = bubblemaps_config.get("supported_chains", [])
+API_URLS = bubblemaps_config.get("api")
+BASE_API_URL = API_URLS.get("base_api_url")
+MAP_AVAILABILITY_URL = API_URLS.get("map_availability_url")
+MAP_METADATA_URL = API_URLS.get("map_metadata_url")
+IFRAME_TEMPLATE_URL = API_URLS.get("iframe_template_url")
 
 application_defaults = Defaults(
     parse_mode=ParseMode.HTML,

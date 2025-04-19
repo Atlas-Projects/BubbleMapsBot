@@ -1,7 +1,7 @@
 import httpx
-from bubblemaps_bot.utils.valkey import get_cache, set_cache
 
-API_URL = "https://api-legacy.bubblemaps.io/map-data"
+from bubblemaps_bot import BASE_API_URL
+from bubblemaps_bot.utils.valkey import get_cache, set_cache
 
 
 async def fetch_map_data(token: str, chain: str):
@@ -11,7 +11,9 @@ async def fetch_map_data(token: str, chain: str):
         return cached
 
     async with httpx.AsyncClient() as client:
-        response = await client.get(API_URL, params={"token": token, "chain": chain})
+        response = await client.get(
+            BASE_API_URL, params={"token": token, "chain": chain}
+        )
         if response.status_code == 200:
             data = response.json()
             await set_cache(key, data)

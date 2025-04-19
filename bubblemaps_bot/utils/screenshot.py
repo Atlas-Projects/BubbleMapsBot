@@ -2,15 +2,21 @@ import asyncio
 import base64
 import logging
 from typing import List, Tuple
-from playwright.async_api import Browser, async_playwright
-from datetime import datetime
-import bubblemaps_bot.utils.bubblemaps_metadata
 
 import aiohttp
-from bubblemaps_bot import SCREENSHOT_CACHE_ENABLED, VALKEY_ENABLED, VALKEY_TTL
-from bubblemaps_bot.utils.valkey import get_cache, set_cache
-from bubblemaps_bot.utils.bubblemaps_metadata import fetch_token_metadata_update_date
+from playwright.async_api import Browser, async_playwright
+
+import bubblemaps_bot.utils.bubblemaps_metadata
+from bubblemaps_bot import (
+    IFRAME_TEMPLATE_URL,
+    MAP_AVAILABILITY_URL,
+    SCREENSHOT_CACHE_ENABLED,
+    VALKEY_ENABLED,
+    VALKEY_TTL,
+)
 from bubblemaps_bot.db.screenshot import get_token_screenshot, upsert_token_screenshot
+from bubblemaps_bot.utils.bubblemaps_metadata import fetch_token_metadata_update_date
+from bubblemaps_bot.utils.valkey import get_cache, set_cache
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,13 +27,12 @@ DEFAULT_USER_AGENT = (
     "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 )
 
-IFRAME_URL_TEMPLATE = "https://app.bubblemaps.io/{chain}/token/{token}"
-MAP_AVAILABILITY_API = "https://api-legacy.bubblemaps.io/map-availability"
 
 # Persistent browser and concurrency limit
 browser: Browser = None
 semaphore = asyncio.Semaphore(5)  # limit concurrent screenshot tasks
 locks = {}
+
 
 async def init_browser():
     global browser, playwright
@@ -46,14 +51,16 @@ async def init_browser():
             ],
         )
 
+
 def build_iframe_url(chain: str, token: str) -> str:
-    return IFRAME_URL_TEMPLATE.format(chain=chain, token=token)
+    return IFRAME_TEMPLATE_URL.format(chain=chain, token=token)
+
 
 async def check_map_availability(chain: str, token: str) -> bool:
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                MAP_AVAILABILITY_API, params={"chain": chain, "token": token}
+                MAP_AVAILABILITY_URL, params={"chain": chain, "token": token}
             ) as resp:
                 data = await resp.json()
                 if data.get("status") == "OK":
@@ -65,11 +72,14 @@ async def check_map_availability(chain: str, token: str) -> bool:
         logger.error(f"[AVAILABILITY CHECK ERROR] {e}")
         return False
 
+
 async def capture_bubblemap(chain: str, token: str, delay: int = 10) -> bytes:
     valkey_key = f"bubblemap:screenshot:{chain}:{token}"
     lock_key = f"{chain}:{token}"
 
-    logger.debug(f"[META MODULE] Using fetch_token_metadata_update_date from {bubblemaps_bot.utils.bubblemaps_metadata.__file__}")
+    logger.debug(
+        f"[META MODULE] Using fetch_token_metadata_update_date from {bubblemaps_bot.utils.bubblemaps_metadata.__file__}"
+    )
 
     if lock_key not in locks:
         locks[lock_key] = asyncio.Lock()
@@ -86,32 +96,40 @@ async def capture_bubblemap(chain: str, token: str, delay: int = 10) -> bytes:
             logger.debug(f"[CACHE CHECK] {chain}:{token} - raw cache data: {cached}")
             if cached:
                 cached_update_date = cached.get("update_date")
-                logger.debug(f"[CACHE CHECK] {chain}:{token} - cached_update_date: {cached_update_date}, expected: {latest_update.isoformat()}")
+                logger.debug(
+                    f"[CACHE CHECK] {chain}:{token} - cached_update_date: {cached_update_date}, expected: {latest_update.isoformat()}"
+                )
                 if cached_update_date == latest_update.isoformat():
                     logger.info(f"[CACHE HIT] {valkey_key}")
                     return base64.b64decode(cached["image"])
                 else:
-                    logger.info(f"[CACHE MISS] {valkey_key} - cached_update_date does not match")
+                    logger.info(
+                        f"[CACHE MISS] {valkey_key} - cached_update_date does not match"
+                    )
             else:
                 logger.info(f"[CACHE MISS] {valkey_key} - no cache entry")
 
         existing = await get_token_screenshot(chain, token)
         if existing:
             db_update_date = existing.update_date.replace(microsecond=0, tzinfo=None)
-            logger.debug(f"[DB CHECK] {chain}:{token} - db_update_date: {db_update_date}")
+            logger.debug(
+                f"[DB CHECK] {chain}:{token} - db_update_date: {db_update_date}"
+            )
             if db_update_date == latest_update:
                 logger.info(f"[DB HIT] Up-to-date screenshot for {chain}:{token}")
                 if VALKEY_ENABLED and SCREENSHOT_CACHE_ENABLED:
                     cache_data = {
                         "image": base64.b64encode(existing.image_data).decode("utf-8"),
-                        "update_date": latest_update.isoformat()
+                        "update_date": latest_update.isoformat(),
                     }
                     logger.debug(f"[CACHE SET] {valkey_key} - TTL: {VALKEY_TTL}")
                     await set_cache(valkey_key, cache_data, ttl=VALKEY_TTL)
                     logger.info(f"Repopulated cache for {valkey_key}")
                 return existing.image_data
         else:
-            logger.debug(f"[DB CHECK] No screenshot found in database for {chain}:{token}")
+            logger.debug(
+                f"[DB CHECK] No screenshot found in database for {chain}:{token}"
+            )
 
         is_available = await check_map_availability(chain, token)
         if not is_available:
@@ -119,7 +137,7 @@ async def capture_bubblemap(chain: str, token: str, delay: int = 10) -> bytes:
                 f"[UNAVAILABLE] BubbleMap not available for {chain}:{token}, skipping screenshot."
             )
 
-        url = f"https://app.bubblemaps.io/{chain}/token/{token}"
+        url = IFRAME_TEMPLATE_URL.format(chain=chain, token=token)
 
         global browser
         if not browser or not browser.is_connected():
@@ -190,13 +208,15 @@ async def capture_bubblemap(chain: str, token: str, delay: int = 10) -> bytes:
                     if VALKEY_ENABLED and SCREENSHOT_CACHE_ENABLED:
                         cache_data = {
                             "image": base64.b64encode(screenshot).decode("utf-8"),
-                            "update_date": latest_update.isoformat()
+                            "update_date": latest_update.isoformat(),
                         }
                         logger.debug(f"[CACHE SET] {valkey_key} - TTL: {VALKEY_TTL}")
                         await set_cache(valkey_key, cache_data, ttl=VALKEY_TTL)
                         logger.info(f"Cached screenshot under {valkey_key}")
 
-                    await upsert_token_screenshot(chain, token, latest_update, screenshot)
+                    await upsert_token_screenshot(
+                        chain, token, latest_update, screenshot
+                    )
                     logger.info(f"Saved screenshot to database for {chain}:{token}")
 
                     return screenshot
@@ -208,6 +228,7 @@ async def capture_bubblemap(chain: str, token: str, delay: int = 10) -> bytes:
         except Exception as e:
             logger.error(f"SVG capture failed: {e}")
             raise
+
 
 async def capture_multiple_bubblemaps(tasks: List[Tuple[str, str]]) -> List[bytes]:
     async def capture_task(chain: str, token: str) -> bytes:

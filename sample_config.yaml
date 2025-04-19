@@ -32,3 +32,8 @@ bubblemaps:
     - base
     - sol
     - sonic
+  api:
+    base_api_url: https://api-legacy.bubblemaps.io/map-data
+    map_availability_url: https://api-legacy.bubblemaps.io/map-availability
+    map_metadata_url: https://api-legacy.bubblemaps.io/map-metadata?chain={chain}&token={token}
+    iframe_template_url: https://app.bubblemaps.io/{chain}/token/{token}
