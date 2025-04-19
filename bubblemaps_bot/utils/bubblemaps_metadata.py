@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any, Tuple
 
 from bubblemaps_bot.utils.valkey import get_cache, set_cache
 from bubblemaps_bot import SUPPORTED_CHAINS, VALKEY_TTL
-from bubblemaps_bot.db.tokens import add_successful_token
+from bubblemaps_bot.db.tokens import add_successful_token, get_successful_token
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,18 @@ async def fetch_metadata(token: str, chain: str) -> Optional[Dict[str, Any]]:
     return data
 
 async def fetch_metadata_from_all_chains(token: str) -> Optional[Tuple[str, Dict[str, Any]]]:
-    """Fetch metadata from all supported chains."""
+    """Fetch metadata from all supported chains, prioritizing database-known successful tokens."""
+    successful_token = await get_successful_token(token)
+    if successful_token:
+        chain = successful_token.chain
+        logger.info(f"[META] Found successful token in database: {chain}:{token}")
+        data = await fetch_metadata(token, chain)
+        if data and data.get("status") == "OK":
+            await add_successful_token(chain, token)
+            return chain, data
+        logger.warning(f"[META] Database-known chain {chain} failed for {token}")
+
+    logger.info(f"[META] No successful token found in database for {token}, checking all chains")
     for chain in SUPPORTED_CHAINS:
         data = await fetch_metadata(token, chain)
         if data and data.get("status") == "OK":
