@@ -65,6 +65,7 @@ python3 -OO -m bubblemaps_bot   # On Windows: python -OO -m bubblemaps_bot
 ## 🛠 Developer Notes
 
 - Ensure your Redis/Valkey server is running if enabled in config.
+- While we only include aiosqlite in our requirements, our ORM vendor SQLAlchemy fully supports MySQL, PostgreSQL. The full list of supported databases can be found [here](https://docs.sqlalchemy.org/en/latest/dialects/)
 - Use tools like `ngrok` for local webhook testing:
 
   ```bash

@@ -122,6 +122,25 @@ pip install -r requirements.txt --upgrade
 
 ---
 
+## 🐍 Python Dependencies
+
+This project uses the following core Python packages:
+
+| Package | Description |
+|--------|-------------|
+| [`python-telegram-bot`](https://pypi.org/project/python-telegram-bot/) | Official Telegram Bot API framework – used to handle messaging, commands, and updates. |
+| [`SQLAlchemy`](https://pypi.org/project/SQLAlchemy/) | Python SQL toolkit and ORM used for database interactions. |
+| [`aiohttp`](https://pypi.org/project/aiohttp/) | Asynchronous HTTP client/server for non-blocking requests, ideal for webhook mode and API calls. |
+| [`aiosqlite`](https://pypi.org/project/aiosqlite/) | Async interface to SQLite – useful for lightweight, non-blocking storage. |
+| [`PyYAML`](https://pypi.org/project/PyYAML/) | Used for reading and parsing the `config.yaml` configuration file. |
+| [`valkey`](https://pypi.org/project/valkey/) | Valkey/Redis-compatible client for high-performance in-memory caching and key-value store access. |
+| [`setuptools`](https://pypi.org/project/setuptools/) | Helps with packaging and distributing the application, required by some dependencies. |
+| [`playwright`](https://pypi.org/project/playwright/) | Headless browser automation – used for capturing screenshots or rendering visual elements (if needed). |
+
+> Full list can be found in [`requirements.txt`](./requirements.txt)
+
+---
+
 ## 📜 License
 
 MIT License. See [LICENSE](./LICENSE) for full details.
