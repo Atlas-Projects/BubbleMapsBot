@@ -313,7 +313,13 @@ async def send_address_details_new(
         f"📤 <b>Transfer Count:</b> {transfer_count}"
     )
 
-    await query.edit_message_text(text, parse_mode=ParseMode.HTML)
+    if isinstance(query.message, Message):
+        await context.bot.send_message(
+            chat_id=query.message.chat.id,
+            text=text,
+            parse_mode=ParseMode.HTML,
+            reply_to_message_id=query.message.reply_to_message.id,
+        )
 
 
 async def send_market_info(
