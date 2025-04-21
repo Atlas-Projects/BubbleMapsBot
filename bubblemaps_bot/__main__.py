@@ -9,7 +9,7 @@ from bubblemaps_bot import (
     WEBHOOK_PORT,
     WEBHOOK_URL,
     builder,
-    log,
+    logger,
 )
 from bubblemaps_bot.db.session import init_db
 from bubblemaps_bot.handlers import get_all_handlers
@@ -24,7 +24,7 @@ async def startup():
     await init_db()
     await init_browser()
     bot_user = await application.bot.get_me()
-    log.info(f"[BUBBLEMAPS] Running as @{bot_user.username}")
+    logger.info(f"[BUBBLEMAPS] Running as @{bot_user.username}")
 
     commands = [
         BotCommand("start", "Start the bot"),
@@ -40,9 +40,9 @@ async def startup():
 
     try:
         await application.bot.set_my_commands(commands)
-        log.info("[BUBBLEMAPS] Bot commands set successfully")
+        logger.info("[BUBBLEMAPS] Bot commands set successfully")
     except Exception as e:
-        log.error(f"[BUBBLEMAPS] Failed to set bot commands: {e}")
+        logger.error(f"[BUBBLEMAPS] Failed to set bot commands: {e}")
 
 def main():
     loop = asyncio.new_event_loop()
@@ -69,7 +69,7 @@ def main():
                 allowed_updates=Update.ALL_TYPES, drop_pending_updates=DROP_UPDATES
             )
     except KeyboardInterrupt:
-        log.info("[BUBBLEMAPS] Bot stopped by user")
+        logger.info("[BUBBLEMAPS] Bot stopped by user")
 
 if __name__ == "__main__":
     main()

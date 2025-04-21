@@ -1,7 +1,6 @@
 import aiohttp
-import logging
 
-logger = logging.getLogger(__name__)
+from bubblemaps_bot import logger
 
 async def get_market_data(chain: str, token_address: str) -> dict | None:
     """

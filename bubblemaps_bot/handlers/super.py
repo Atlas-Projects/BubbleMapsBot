@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from datetime import datetime
 
 from telegram import (
@@ -13,6 +12,7 @@ from telegram import (
 from telegram.constants import ParseMode
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
+from bubblemaps_bot import logger
 from bubblemaps_bot.utils.bubblemaps_api import (
     fetch_address_details,
     fetch_distribution,
@@ -20,9 +20,6 @@ from bubblemaps_bot.utils.bubblemaps_api import (
 from bubblemaps_bot.utils.bubblemaps_metadata import fetch_metadata_from_all_chains
 from bubblemaps_bot.utils.coingecko_api import get_market_data
 from bubblemaps_bot.utils.screenshot import build_iframe_url, capture_bubblemap
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 ITEMS_PER_PAGE = 5
 

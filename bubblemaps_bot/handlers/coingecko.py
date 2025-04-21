@@ -1,14 +1,11 @@
-import logging
 from datetime import datetime
 
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
+from bubblemaps_bot import logger
 from bubblemaps_bot.utils.bubblemaps_metadata import fetch_metadata_from_all_chains
 from bubblemaps_bot.utils.coingecko_api import get_market_data
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 async def coin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

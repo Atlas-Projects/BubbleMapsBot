@@ -8,7 +8,7 @@ from telegram.ext import Application, Defaults
 from bubblemaps_bot.utils.yaml import load_config
 
 fileConfig("logging.ini")
-log = logging.getLogger("[BUBBLEMAPS]")
+logger = logging.getLogger("[BUBBLEMAPS]")
 
 base_config = load_config("config.yaml")
 

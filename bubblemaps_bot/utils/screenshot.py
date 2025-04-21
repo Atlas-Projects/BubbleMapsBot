@@ -1,6 +1,5 @@
 import asyncio
 import base64
-import logging
 from typing import List, Tuple
 
 import aiohttp
@@ -13,13 +12,12 @@ from bubblemaps_bot import (
     SCREENSHOT_CACHE_ENABLED,
     VALKEY_ENABLED,
     VALKEY_TTL,
+    logger,
 )
 from bubblemaps_bot.db.screenshot import get_token_screenshot, upsert_token_screenshot
 from bubblemaps_bot.utils.bubblemaps_metadata import fetch_token_metadata_update_date
 from bubblemaps_bot.utils.valkey import get_cache, set_cache
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 DEFAULT_VIEWPORT = {"width": 1200, "height": 800}
 DEFAULT_USER_AGENT = (

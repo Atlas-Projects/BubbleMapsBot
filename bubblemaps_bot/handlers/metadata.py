@@ -1,15 +1,11 @@
-import logging
-
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
+from bubblemaps_bot import logger
 from bubblemaps_bot.utils.bubblemaps_metadata import (
     fetch_metadata,
     fetch_metadata_from_all_chains,
 )
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 async def meta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

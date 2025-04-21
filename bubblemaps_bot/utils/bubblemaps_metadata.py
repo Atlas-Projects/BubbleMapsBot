@@ -1,14 +1,12 @@
-import logging
 from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
 import aiohttp
 
-from bubblemaps_bot import MAP_METADATA_URL, SUPPORTED_CHAINS, VALKEY_TTL
+from bubblemaps_bot import MAP_METADATA_URL, SUPPORTED_CHAINS, VALKEY_TTL, logger
 from bubblemaps_bot.db.tokens import add_successful_token, get_successful_token
 from bubblemaps_bot.utils.valkey import get_cache, set_cache
 
-logger = logging.getLogger(__name__)
 
 
 async def fetch_metadata_raw(chain: str, token: str) -> Optional[Dict[str, Any]]:
