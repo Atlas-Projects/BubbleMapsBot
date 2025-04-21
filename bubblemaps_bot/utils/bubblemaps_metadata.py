@@ -8,9 +8,15 @@ from bubblemaps_bot.db.tokens import add_successful_token, get_successful_token
 from bubblemaps_bot.utils.valkey import get_cache, set_cache
 
 
-
 async def fetch_metadata_raw(chain: str, token: str) -> Optional[Dict[str, Any]]:
-    """Fetch raw metadata from the BubbleMaps API."""
+    """
+    Fetch raw metadata for a token from the Bubblemaps API.
+    Args:
+        chain: Blockchain network identifier (e.g., 'eth').
+        token: Token address.
+    Returns:
+        dict: Metadata if successful, None otherwise.
+    """
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
@@ -38,7 +44,14 @@ async def fetch_metadata_raw(chain: str, token: str) -> Optional[Dict[str, Any]]
 async def fetch_token_metadata_update_date(
     chain: str, token: str
 ) -> Optional[datetime]:
-    """Fetch the update date from token metadata."""
+    """
+    Fetch the update date from token metadata.
+    Args:
+        chain: Blockchain network identifier (e.g., 'eth').
+        token: Token address.
+    Returns:
+        datetime: Update date if found, None otherwise.
+    """
     data = await fetch_metadata_raw(chain, token)
     if data and (dt_update_str := data.get("dt_update")):
         return datetime.fromisoformat(dt_update_str)
@@ -47,7 +60,14 @@ async def fetch_token_metadata_update_date(
 
 
 async def fetch_metadata(token: str, chain: str) -> Optional[Dict[str, Any]]:
-    """Fetch metadata with caching."""
+    """
+    Fetch metadata for a token, using cache if available.
+    Args:
+        token: Token address.
+        chain: Blockchain network identifier (e.g., 'eth').
+    Returns:
+        dict: Metadata if successful, None otherwise.
+    """
     cache_key = f"metadata:{chain}:{token}"
     cached = await get_cache(cache_key)
     if cached:
@@ -62,7 +82,13 @@ async def fetch_metadata(token: str, chain: str) -> Optional[Dict[str, Any]]:
 async def fetch_metadata_from_all_chains(
     token: str,
 ) -> Optional[Tuple[str, Dict[str, Any]]]:
-    """Fetch metadata from all supported chains, prioritizing database-known successful tokens."""
+    """
+    Fetch metadata for a token across all supported chains.
+    Args:
+        token: Token address.
+    Returns:
+        tuple: (chain, metadata) if successful, None otherwise.
+    """
     successful_token = await get_successful_token(token)
     if successful_token:
         chain = successful_token.chain

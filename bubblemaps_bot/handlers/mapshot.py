@@ -15,6 +15,15 @@ from bubblemaps_bot.utils.screenshot import (
 async def mapshot_worker(
     please_wait_msg, update: Update, context: CallbackContext, chain: str, token: str
 ):
+    """
+    Worker function to generate and send a Bubblemap screenshot for a given chain and token.
+    Args:
+        please_wait_msg: Message indicating processing status.
+        update: Telegram update object.
+        context: Telegram callback context.
+        chain: Blockchain network identifier (e.g., 'eth').
+        token: Token address.
+    """
     try:
         screenshot = await capture_bubblemap(chain, token)
         iframe_url = build_iframe_url(chain, token)
@@ -48,6 +57,13 @@ async def mapshot_worker(
 
 
 async def mapshot_command(update: Update, context: CallbackContext):
+    """
+    Telegram command to generate a Bubblemap screenshot for a token.
+    Usage: /mapshot <token_address> or /mapshot <chain> <token_address>
+    Examples:
+        /mapshot 0x19de6b897ed14a376dda0fe53a5420d2ac828a28
+        /mapshot eth 0x19de6b897ed14a376dda0fe53a5420d2ac828a28
+    """
     if not context.args or len(context.args) > 2:
         await update.message.reply_text(
             "Usage: /mapshot <token_address> or /mapshot <chain> <token_address>"
@@ -79,4 +95,7 @@ async def mapshot_command(update: Update, context: CallbackContext):
 
 
 def get_handlers():
+    """
+    Returns a list of command handlers for the Telegram bot.
+    """
     return [CommandHandler("mapshot", mapshot_command)]

@@ -20,6 +20,13 @@ if VALKEY_ENABLED:
 
 
 async def get_cache(key: str) -> dict | None:
+    """
+    Retrieve a cached value from Valkey by key.
+    Args:
+        key: Cache key.
+    Returns:
+        dict: Cached value if found, None otherwise.
+    """
     if not valkey:
         return None
     try:
@@ -31,6 +38,13 @@ async def get_cache(key: str) -> dict | None:
 
 
 async def set_cache(key: str, value: dict, ttl: int = None) -> None:
+    """
+    Store a value in Valkey with an optional TTL.
+    Args:
+        key: Cache key.
+        value: Dictionary to cache.
+        ttl: Time-to-live in seconds (defaults to VALKEY_TTL if None).
+    """
     if not valkey:
         return
     try:
@@ -40,5 +54,10 @@ async def set_cache(key: str, value: dict, ttl: int = None) -> None:
 
 
 async def shutdown_valkey(_: Application) -> None:
+    """
+    Close the Valkey connection pool during application shutdown.
+    Args:
+        _: Telegram Application instance (unused).
+    """
     if valkey:
         await valkey.aclose(close_connection_pool=True)

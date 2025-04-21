@@ -6,6 +6,10 @@ from bubblemaps_bot.utils.valkey import valkey
 
 
 async def clear_cache_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Telegram command to initiate clearing of Valkey cache, restricted to sudo users.
+    Usage: /clear
+    """
     user_id = update.effective_user.id
 
     if user_id not in SUDO_USERS:
@@ -29,6 +33,12 @@ async def clear_cache_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handle callback queries for cache clearing confirmation or cancellation.
+    Args:
+        update: Telegram Update object.
+        context: Telegram context.
+    """
     query = update.callback_query
     user_id = query.from_user.id
     await query.answer()
@@ -56,6 +66,9 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 def get_handlers():
+    """
+    Return handlers for the clear cache command and its callbacks.
+    """
     return [
         CommandHandler("clear", clear_cache_command),
         CallbackQueryHandler(handle_callback_query),

@@ -33,6 +33,9 @@ locks = {}
 
 
 async def init_browser():
+    """
+    Initialize a headless Chromium browser instance for screenshot capture.
+    """
     global browser, playwright
     if not browser:
         playwright = await async_playwright().start()
@@ -51,10 +54,26 @@ async def init_browser():
 
 
 def build_iframe_url(chain: str, token: str) -> str:
+    """
+    Construct the iframe URL for a Bubblemap.
+    Args:
+        chain: Blockchain network identifier (e.g., 'eth').
+        token: Token address.
+    Returns:
+        str: Formatted iframe URL.
+    """
     return IFRAME_TEMPLATE_URL.format(chain=chain, token=token)
 
 
 async def check_map_availability(chain: str, token: str) -> bool:
+    """
+    Check if a Bubblemap is available for the given chain and token.
+    Args:
+        chain: Blockchain network identifier (e.g., 'eth').
+        token: Token address.
+    Returns:
+        bool: True if available, False otherwise.
+    """
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
@@ -72,6 +91,17 @@ async def check_map_availability(chain: str, token: str) -> bool:
 
 
 async def capture_bubblemap(chain: str, token: str, delay: int = 10) -> bytes:
+    """
+    Capture a screenshot of a Bubblemap for the given chain and token.
+    Args:
+        chain: Blockchain network identifier (e.g., 'eth').
+        token: Token address.
+        delay: Delay in seconds before capturing screenshot (default: 10).
+    Returns:
+        bytes: Screenshot image data.
+    Raises:
+        Exception: If screenshot capture fails or map is unavailable.
+    """
     valkey_key = f"bubblemap:screenshot:{chain}:{token}"
     lock_key = f"{chain}:{token}"
 
@@ -229,6 +259,13 @@ async def capture_bubblemap(chain: str, token: str, delay: int = 10) -> bytes:
 
 
 async def capture_multiple_bubblemaps(tasks: List[Tuple[str, str]]) -> List[bytes]:
+    """
+    Capture multiple Bubblemap screenshots concurrently.
+    Args:
+        tasks: List of (chain, token) tuples.
+    Returns:
+        List of screenshot image data (bytes) for successful captures.
+    """
     async def capture_task(chain: str, token: str) -> bytes:
         try:
             return await capture_bubblemap(chain, token)

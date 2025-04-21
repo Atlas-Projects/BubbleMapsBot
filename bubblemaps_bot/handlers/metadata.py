@@ -9,6 +9,13 @@ from bubblemaps_bot.utils.bubblemaps_metadata import (
 
 
 async def meta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Telegram command to fetch metadata for a token.
+    Usage: /meta <token_address> or /meta <chain> <token_address>
+    Examples:
+        /meta 0x19de6b897ed14a376dda0fe53a5420d2ac828a28
+        /meta eth 0x19de6b897ed14a376dda0fe53a5420d2ac828a28
+    """
     if not context.args:
         await update.message.reply_text(
             "Usage: /meta <token_address> or /meta <chain> <token_address>"
@@ -59,4 +66,7 @@ Actual error: {data.get('message', 'Unknown error')}"
 
 
 def get_handlers():
+    """
+    Returns a list of command handlers for the Telegram bot.
+    """
     return [CommandHandler("meta", meta_command)]

@@ -26,7 +26,7 @@ ITEMS_PER_PAGE = 5
 
 async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
-    Main command to check token across all chains and provide comprehensive analysis.
+    Telegram command to check token across all chains and provide comprehensive analysis.
     Usage: /check <token_address>
     Example: /check 0x19de6b897ed14a376dda0fe53a5420d2ac828a28
     """
@@ -61,7 +61,13 @@ async def send_main_menu(
     context: ContextTypes.DEFAULT_TYPE,
     bmap_back: bool = False,
 ):
-    """Send or edit the main menu with metadata and options."""
+    """
+    Send or edit the main menu with metadata and options.
+    Args:
+        message_query: Message or CallbackQuery object.
+        context: Telegram context.
+        bmap_back: Flag to indicate if returning from bubblemap view.
+    """
     if isinstance(message_query, CallbackQuery):
         data = context.user_data[message_query.message.chat.id].get("check", {})
     elif isinstance(message_query, Message):
@@ -126,6 +132,13 @@ Please re-send the /check command to check the various information."
 
 
 async def generate_bubblemap_send(chain: str, token: str, query: CallbackQuery) -> None:
+    """
+    Generate and send bubblemap screenshot.
+    Args:
+        chain: Blockchain network identifier.
+        token: Token address.
+        query: Telegram CallbackQuery object.
+    """
     try:
         screenshot = await capture_bubblemap(chain, token)
         iframe_url = build_iframe_url(chain, token)
@@ -179,7 +192,12 @@ Actual exception: {ex}"
 
 
 async def send_mapshot(query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE):
-    """Generate and send bubblemap screenshot."""
+    """
+    Initiate bubblemap screenshot generation and sending.
+    Args:
+        query: Telegram CallbackQuery object.
+        context: Telegram context.
+    """
     data = context.user_data[query.message.chat.id].get("check", {})
     chain = data["chain"]
     token = data["token"]
@@ -192,7 +210,12 @@ async def send_distribution_page(
     message_query: Message | CallbackQuery | None,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
-    """Send or edit distribution page with address selection options."""
+    """
+    Send or edit distribution page with address selection options.
+    Args:
+        message_query: Message or CallbackQuery object.
+        context: Telegram context.
+    """
     if isinstance(message_query, Message):
         data = context.user_data[message_query.chat.id].get("check", {})
     elif isinstance(message_query, CallbackQuery):
@@ -269,7 +292,13 @@ async def send_distribution_page(
 async def send_address_details_inline(
     query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE, address: str
 ) -> None:
-    """Display address details in the same message with a back button."""
+    """
+    Display address details in the same message with a back button.
+    Args:
+        query: Telegram CallbackQuery object.
+        context: Telegram context.
+        address: Address to fetch details for.
+    """
     data = context.user_data[query.message.chat.id].get("check", {})
     chain = data["chain"]
     token = data["token"]
@@ -310,7 +339,13 @@ async def send_address_details_inline(
 async def send_address_details_new(
     query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE, address: str
 ) -> None:
-    """Send address details as a new message without buttons."""
+    """
+    Send address details as a new message without buttons.
+    Args:
+        query: Telegram CallbackQuery object.
+        context: Telegram context.
+        address: Address to fetch details for.
+    """
     data = context.user_data[query.message.chat.id].get("check", {})
     chain = data["chain"]
     token = data["token"]
@@ -352,7 +387,12 @@ async def send_address_details_new(
 async def send_market_info(
     query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
-    """Fetch and display additional market information from CoinGecko."""
+    """
+    Fetch and display additional market information from CoinGecko.
+    Args:
+        query: Telegram CallbackQuery object.
+        context: Telegram context.
+    """
     data = context.user_data[query.message.chat.id].get("check", {})
     if not data:
         await query.edit_message_text("❌ Session expired.")
@@ -458,7 +498,12 @@ async def send_market_info(
 
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle all button callbacks."""
+    """
+    Handle all button callbacks for the check command.
+    Args:
+        update: Telegram Update object.
+        context: Telegram context.
+    """
     query = update.callback_query
     await query.answer()
 
@@ -531,7 +576,9 @@ Please re-send the /check command to check the various information."
 
 
 def get_handlers():
-    """Return handlers for the check command and its callbacks."""
+    """
+    Return handlers for the check command and its callbacks.
+    """
     return [
         CommandHandler("check", check_command),
         CallbackQueryHandler(button_handler, pattern="^check_"),
