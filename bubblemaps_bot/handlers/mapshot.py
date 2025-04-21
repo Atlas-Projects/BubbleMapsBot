@@ -4,6 +4,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ChatType
 from telegram.ext import CallbackContext, CommandHandler
 
+from bubblemaps_bot import logger
 from bubblemaps_bot.utils.bubblemaps_metadata import fetch_metadata_from_all_chains
 from bubblemaps_bot.utils.screenshot import (
     build_iframe_url,
@@ -53,7 +54,8 @@ async def mapshot_worker(
             parse_mode="HTML",
         )
     except Exception as e:
-        await please_wait_msg.edit_text(f"❌ Failed to generate mapshot: {e}")
+        logger.error(f"Failed to generate mapshot for {chain}:{token}: {e}")
+        await please_wait_msg.edit_text("❌ Failed to generate mapshot.")
 
 
 async def mapshot_command(update: Update, context: CallbackContext):

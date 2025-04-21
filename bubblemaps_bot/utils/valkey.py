@@ -9,6 +9,7 @@ from bubblemaps_bot import (
     VALKEY_HOST,
     VALKEY_PORT,
     VALKEY_TTL,
+    logger,
 )
 
 valkey: Valkey | None = None
@@ -33,7 +34,7 @@ async def get_cache(key: str) -> dict | None:
         raw = await valkey.get(key)
         return json.loads(raw) if raw else None
     except Exception as e:
-        print(f"Error fetching cache for key {key}: {e}")
+        logger.error(f"Error fetching cache for key {key}: {e}")
         return None
 
 
@@ -50,7 +51,7 @@ async def set_cache(key: str, value: dict, ttl: int = None) -> None:
     try:
         await valkey.set(key, json.dumps(value), ex=ttl or VALKEY_TTL)
     except Exception as e:
-        print(f"Error setting cache for key {key}: {e}")
+        logger.error(f"Error setting cache for key {key}: {e}")
 
 
 async def shutdown_valkey(_: Application) -> None:
