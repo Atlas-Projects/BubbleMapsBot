@@ -1,7 +1,9 @@
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
+
 from bubblemaps_bot.utils.bubblemaps_api import fetch_address_details
 from bubblemaps_bot.utils.bubblemaps_metadata import fetch_metadata_from_all_chains
+
 
 async def address_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -12,14 +14,18 @@ async def address_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         /address eth 0x19de6b897ed14a376dda0fe53a5420d2ac828a28 0x1ae3739e17d8500f2b2d80086ed092596a116e0b
     """
     if len(context.args) not in [2, 3]:
-        await update.message.reply_text("Usage: /address <token_address> <address> or /address <chain> <token_address> <address>")
+        await update.message.reply_text(
+            "Usage: /address <token_address> <address> or /address <chain> <token_address> <address>"
+        )
         return
 
     if len(context.args) == 2:
         token, address = context.args
         result = await fetch_metadata_from_all_chains(token)
         if not result:
-            await update.message.reply_text("❌ Token not found on any supported chains.")
+            await update.message.reply_text(
+                "❌ Token not found on any supported chains."
+            )
             return
         chain, _ = result
     else:
@@ -27,7 +33,9 @@ async def address_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     data = await fetch_address_details(token, chain, address)
     if not data:
-        await update.message.reply_text(f"❌ No details found for address {address} on chain {chain.upper()} for token {token}.")
+        await update.message.reply_text(
+            f"❌ No details found for address {address} on chain {chain.upper()} for token {token}."
+        )
         return
 
     name = data.get("name", "Unknown")
@@ -50,6 +58,7 @@ async def address_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📤 <b>Transfer Count:</b> {transfer_count}"
     )
     await update.message.reply_text(text, parse_mode="HTML")
+
 
 def get_handlers():
     return [CommandHandler("address", address_command)]

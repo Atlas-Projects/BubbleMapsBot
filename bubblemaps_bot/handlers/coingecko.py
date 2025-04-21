@@ -4,11 +4,12 @@ from datetime import datetime
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
-from bubblemaps_bot.utils.coingecko_api import get_market_data
 from bubblemaps_bot.utils.bubblemaps_metadata import fetch_metadata_from_all_chains
+from bubblemaps_bot.utils.coingecko_api import get_market_data
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 async def coin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -33,25 +34,42 @@ async def coin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     market_data = await get_market_data(chain, token_address)
     if not market_data:
-        await update.message.reply_text("❌ Failed to fetch market information.")
+        await update.message.reply_text(
+            "❌ Failed to fetch market information.\n\
+Please retry later."
+        )
         return
 
     name = market_data.get("name", "Unknown")
     symbol = market_data.get("symbol", "Unknown").upper()
-    current_price = market_data.get("market_data", {}).get("current_price", {}).get("usd", "N/A")
-    market_cap = market_data.get("market_data", {}).get("market_cap", {}).get("usd", "N/A")
+    current_price = (
+        market_data.get("market_data", {}).get("current_price", {}).get("usd", "N/A")
+    )
+    market_cap = (
+        market_data.get("market_data", {}).get("market_cap", {}).get("usd", "N/A")
+    )
     market_cap_rank = market_data.get("market_data", {}).get("market_cap_rank", "N/A")
-    total_volume = market_data.get("market_data", {}).get("total_volume", {}).get("usd", "N/A")
-    price_change_24h = market_data.get("market_data", {}).get("price_change_percentage_24h", "N/A")
+    total_volume = (
+        market_data.get("market_data", {}).get("total_volume", {}).get("usd", "N/A")
+    )
+    price_change_24h = market_data.get("market_data", {}).get(
+        "price_change_percentage_24h", "N/A"
+    )
     total_supply = market_data.get("market_data", {}).get("total_supply", "N/A")
-    circulating_supply = market_data.get("market_data", {}).get("circulating_supply", "N/A")
+    circulating_supply = market_data.get("market_data", {}).get(
+        "circulating_supply", "N/A"
+    )
     ath = market_data.get("market_data", {}).get("ath", {}).get("usd", "N/A")
     ath_date = market_data.get("market_data", {}).get("ath_date", {}).get("usd", "N/A")
     if ath_date != "N/A":
-        ath_date = datetime.strptime(ath_date, "%Y-%m-%dT%H:%M:%S.%fZ").strftime("%Y-%m-%d")
+        ath_date = datetime.strptime(ath_date, "%Y-%m-%dT%H:%M:%S.%fZ").strftime(
+            "%Y-%m-%d"
+        )
     last_updated = market_data.get("last_updated", "N/A")
     if last_updated != "N/A":
-        last_updated = datetime.strptime(last_updated, "%Y-%m-%dT%H:%M:%S.%fZ").strftime("%Y-%m-%d %H:%M:%S")
+        last_updated = datetime.strptime(
+            last_updated, "%Y-%m-%dT%H:%M:%S.%fZ"
+        ).strftime("%Y-%m-%d %H:%M:%S")
 
     text = (
         f"<b>📈 Market Information</b>\n\n"
@@ -72,6 +90,7 @@ async def coin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     await update.message.reply_text(text, parse_mode="HTML")
+
 
 def get_handlers():
     """Return handlers for the coin command."""

@@ -1,5 +1,6 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
+
 from bubblemaps_bot import SUDO_USERS
 from bubblemaps_bot.utils.valkey import valkey
 

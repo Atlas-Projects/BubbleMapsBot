@@ -71,7 +71,10 @@ async def send_main_menu(
         data = context.user_data[message_query.chat.id].get("check", {})
 
     if not data:
-        await message_query.reply_text("❌ Session expired.")
+        await message_query.reply_text(
+            "❌ Session expired.\n\
+Please re-send the /check command to check the various information."
+        )
         return
 
     chain = data["chain"]
@@ -129,7 +132,7 @@ async def generate_bubblemap_send(chain: str, token: str, query: CallbackQuery) 
     try:
         screenshot = await capture_bubblemap(chain, token)
         iframe_url = build_iframe_url(chain, token)
-        
+
         is_group = query.message.chat.type in ["group", "supergroup"]
 
         if is_group:
@@ -144,7 +147,9 @@ async def generate_bubblemap_send(chain: str, token: str, query: CallbackQuery) 
             keyboard = [
                 [
                     InlineKeyboardButton("🌐 View in Browser", url=iframe_url),
-                    InlineKeyboardButton("🫧 View in Telegram", web_app={"url": iframe_url}),
+                    InlineKeyboardButton(
+                        "🫧 View in Telegram", web_app={"url": iframe_url}
+                    ),
                 ],
                 [
                     InlineKeyboardButton("❌ Close", callback_data="check_close"),
@@ -163,8 +168,17 @@ async def generate_bubblemap_send(chain: str, token: str, query: CallbackQuery) 
             ),
             reply_markup=markup,
         )
-    except Exception as e:
-        await query.edit_message_text(f"❌ Mapshot failed: {e}")
+    except Exception as ex:
+        await query.edit_message_text(
+            "❌ Mapshot failed due to some unforseen reason",
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("⬅️ Go Back", callback_data="check_back_bmap")]]
+            ),
+        )
+        await logger.error(
+            f"Exception occurred while generating a mapshot, for chain: {chain}, token: {token}\n\
+Actual exception: {ex}"
+        )
 
 
 async def send_mapshot(query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE):
@@ -454,7 +468,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     check_data = context.user_data[update.effective_chat.id].get("check", {})
     if not check_data:
-        await query.edit_message_text("❌ Session expired.")
+        await query.edit_message_text(
+            "❌ Session expired.\n\
+Please re-send the /check command to check the various information."
+        )
         return
 
     if data == "check_close":

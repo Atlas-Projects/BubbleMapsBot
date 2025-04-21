@@ -1,17 +1,31 @@
+import logging
+
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
-from bubblemaps_bot.utils.bubblemaps_metadata import fetch_metadata, fetch_metadata_from_all_chains
+
+from bubblemaps_bot.utils.bubblemaps_metadata import (
+    fetch_metadata,
+    fetch_metadata_from_all_chains,
+)
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 async def meta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        await update.message.reply_text("Usage: /meta <token_address> or /meta <chain> <token_address>")
+        await update.message.reply_text(
+            "Usage: /meta <token_address> or /meta <chain> <token_address>"
+        )
         return
 
     if len(context.args) == 1:
         token = context.args[0]
         result = await fetch_metadata_from_all_chains(token)
         if not result:
-            await update.message.reply_text("❌ No metadata found for this token on supported chains.")
+            await update.message.reply_text(
+                "❌ No metadata found for this token on supported chains."
+            )
             return
         chain, data = result
     else:
@@ -21,7 +35,14 @@ async def meta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Error contacting Bubblemaps API.")
             return
         if data.get("status") != "OK":
-            await update.message.reply_text(f"❌ Bubblemaps error: {data.get('message', 'Unknown error')}")
+            await update.message.reply_text(
+                f"Some error occurred trying to fetch details about {' '.join(context.args)} from Bubblemaps.\n\
+Please retry later."
+            )
+            logger.error(
+                f"❌ Bubblemaps error while trying to fetch details about: {' '.join(context.args)}\n\
+Actual error: {data.get('message', 'Unknown error')}"
+            )
             return
 
     score = data["decentralisation_score"]
@@ -39,6 +60,7 @@ async def meta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🕒 <b>Last Updated:</b> {dt_update}"
     )
     await update.message.reply_text(text)
+
 
 def get_handlers():
     return [CommandHandler("meta", meta_command)]
