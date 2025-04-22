@@ -97,6 +97,16 @@ Here are some of the capabilities your users can try within Telegram:
 
 ---
 
+## 🎥 Demonstrations
+
+- **Deployment Video**: Learn how to deploy the bot.  
+  [Watch on YouTube](https://youtu.be/dN4Yksj7ri4)
+
+- **Bot Functioning Showcase**: See the bot in action.  
+  [Watch on YouTube](https://youtu.be/Zrc5ZD1wVpI)
+
+---
+
 ## 🧩 Supported Chains
 
 - Ethereum (`eth`)
